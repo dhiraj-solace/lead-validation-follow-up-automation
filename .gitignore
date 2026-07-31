@@ -130,6 +130,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.deps/
 env/
 venv/
 ENV/
@@ -179,3 +180,22 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Local project runtime data
+.idea/
+credentials/
+cookies.json
+uploads/
+outputs/
+results/
+demo_results/
+processComplete/
+Archive/
+botOutput/
+bot_filtered_bad_or_not/
+input_lead_csv/
+supportive_files/
+docx_render_check/
+data/
+frontend/.next/
+frontend/node_modules/

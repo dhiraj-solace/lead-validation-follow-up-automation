@@ -1,0 +1,510 @@
+import csv
+import io
+import os
+
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+
+from src.app.core.config import settings
+from src.app.db.database import execute
+from src.app.models.schemas import (
+    AgentCreateRequest,
+    BatchEmailValidationResponse,
+    BatchPhoneValidationResponse,
+    EmailDraftRequest,
+    EmailDraftResponse,
+    EmailFeedbackRequest,
+    EmailValidationResult,
+    LearningActiveRequest,
+    LearningReviewRequest,
+    MarkRepliedRequest,
+    PhoneValidationResult,
+    SendEmailResponse,
+    SendTestEmailRequest,
+    TemplateCreateRequest,
+    UploadLeadsResponse,
+)
+from src.app.services.agent_service import AgentService
+from src.app.services.ai_email_service import AIEmailService
+from src.app.services.demo_data_service import DemoDataService
+from src.app.services.email_sender_service import EmailSenderService
+from src.app.services.email_learning_service import EmailLearningService
+from src.app.services.email_service import EmailService
+from src.app.services.file_parser_service import FileParserService
+from src.app.services.followup_service import FollowupService
+from src.app.services.lead_service import LeadService
+from src.app.services.phone_service import TwilioLookupClient
+from src.app.services.scoring_service import LeadScoringService
+from src.app.services.template_service import TemplateService
+from src.app.services.whatsapp_sender_service import WhatsAppSenderService
+
+router = APIRouter()
+
+
+@router.get("/dashboard")
+async def dashboard():
+    return LeadService.dashboard()
+
+
+@router.post("/upload-leads", response_model=UploadLeadsResponse)
+async def upload_leads(
+    file: UploadFile = File(...),
+    validate_contacts: bool = Query(default=True),
+):
+    rows = await FileParserService.parse_lead_upload(file)
+    leads = []
+    created = 0
+    merged = 0
+
+    for row in rows:
+        lead, was_duplicate = await LeadService.create_or_update_from_upload(row, validate_contacts=validate_contacts)
+        leads.append(lead)
+        if was_duplicate:
+            merged += 1
+        else:
+            created += 1
+
+    auto_drafted = 0
+    refreshed_leads = []
+    for lead in leads:
+        if _should_auto_generate_draft(lead):
+            try:
+                draft_result = AIEmailService.generate_draft(lead["id"])
+                if draft_result.get("success"):
+                    auto_drafted += 1
+                    lead = LeadService.get_lead(lead["id"]) or lead
+            except Exception:
+                pass
+        refreshed_leads.append(lead)
+
+    return UploadLeadsResponse(
+        total_rows=len(rows),
+        created=created,
+        merged_duplicates=merged,
+        auto_drafted=auto_drafted,
+        valid=sum(1 for lead in refreshed_leads if lead["validation_status"] == "Valid"),
+        invalid=sum(1 for lead in refreshed_leads if lead["validation_status"] == "Invalid"),
+        duplicate=sum(1 for lead in refreshed_leads if lead["validation_status"] == "Duplicate"),
+        hot=sum(1 for lead in refreshed_leads if lead["score_band"] == "Hot"),
+        warm=sum(1 for lead in refreshed_leads if lead["score_band"] == "Warm"),
+        cold=sum(1 for lead in refreshed_leads if lead["score_band"] == "Cold"),
+        leads=refreshed_leads,
+    )
+
+
+@router.get("")
+async def list_leads(
+    status: str | None = None,
+    score_band: str | None = None,
+):
+    return LeadService.list_leads(status=status, score_band=score_band)
+
+
+@router.get("/high-priority")
+async def high_priority_leads():
+    return LeadService.list_high_priority()
+
+
+@router.get("/followups/queue")
+async def followup_queue():
+    return FollowupService.list_queue()
+
+
+@router.post("/followups/process-due")
+async def process_due_followups():
+    return await FollowupService.process_due()
+
+
+@router.get("/agents/list")
+async def list_agents():
+    return AgentService.list_agents()
+
+
+@router.post("/agents")
+async def create_agent(payload: AgentCreateRequest):
+    data = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    return AgentService.create_agent(data)
+
+
+@router.get("/templates/list")
+async def list_templates():
+    return TemplateService.list_templates()
+
+
+@router.post("/templates")
+async def create_template(payload: TemplateCreateRequest):
+    data = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    return TemplateService.create_template(data)
+
+
+@router.post("/demo/load")
+async def load_demo_data(validate_contacts: bool = Query(default=True)):
+    return await DemoDataService.load_demo_leads(validate_contacts=validate_contacts)
+
+
+@router.post("/{lead_id}/duplicates/replace")
+async def replace_duplicate(lead_id: int, validate_contacts: bool = Query(default=True)):
+    result = await LeadService.replace_duplicate(lead_id, validate_contacts=validate_contacts)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
+
+
+@router.post("/{lead_id}/duplicates/skip")
+async def skip_duplicate(lead_id: int):
+    result = LeadService.skip_duplicate(lead_id)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
+
+
+@router.post("/{lead_id}/generate-email", response_model=EmailDraftResponse)
+async def generate_email(lead_id: int):
+    result = AIEmailService.generate_draft(lead_id)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
+
+
+@router.post("/{lead_id}/email-draft", response_model=EmailDraftResponse)
+async def save_email_draft(lead_id: int, payload: EmailDraftRequest):
+    lead = LeadService.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found.")
+    result = AIEmailService.save_draft(lead_id, payload.subject, payload.body)
+    return {
+        "success": result["success"],
+        "message": result["message"],
+        "lead_id": lead_id,
+        "subject": result["subject"],
+        "body": result["body"],
+    }
+
+
+@router.post("/{lead_id}/send-email-draft", response_model=EmailDraftResponse)
+async def send_email_draft(lead_id: int, payload: EmailDraftRequest):
+    result = await AIEmailService.send_draft(lead_id, payload.subject, payload.body)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
+
+
+@router.post("/{lead_id}/send-whatsapp")
+async def send_whatsapp_message(lead_id: int):
+    lead = LeadService.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found.")
+    if not lead.get("phone"):
+        raise HTTPException(status_code=400, detail="Lead has no phone number.")
+
+    subject = lead.get("email_draft_subject") or "Property follow-up"
+    body = lead.get("email_draft_body") or ""
+    if not body:
+        draft = AIEmailService.generate_draft(lead_id)
+        if not draft.get("success"):
+            raise HTTPException(status_code=400, detail=draft.get("message", "Could not generate message."))
+        subject = draft.get("subject") or subject
+        body = draft.get("body") or ""
+
+    result = await WhatsAppSenderService.send_text(lead["phone"], _format_whatsapp_body(body))
+    execute(
+        """
+        INSERT INTO message_logs (lead_id, channel, direction, subject, body, status, error)
+        VALUES (?, 'whatsapp', 'outbound', ?, ?, ?, ?)
+        """,
+        (
+            lead_id,
+            subject,
+            body,
+            "sent" if result["success"] else "failed",
+            "" if result["success"] else result["message"],
+        ),
+    )
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
+
+
+@router.post("/{lead_id}/email-feedback", response_model=EmailDraftResponse)
+async def record_email_feedback(lead_id: int, payload: EmailFeedbackRequest):
+    lead = LeadService.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found.")
+
+    subject = payload.subject if payload.subject is not None else lead.get("email_draft_subject", "")
+    body = payload.body if payload.body is not None else lead.get("email_draft_body", "")
+    if not subject or not body:
+        raise HTTPException(status_code=400, detail="No email draft available for feedback.")
+    if payload.action.lower().strip() == "rejected" and not (payload.feedback or "").strip():
+        raise HTTPException(status_code=400, detail="Human rejection reason is required.")
+
+    result = EmailLearningService.record_feedback(
+        lead=lead,
+        action=payload.action,
+        subject=subject,
+        body=body,
+        feedback=payload.feedback or "",
+        tone=payload.tone or "",
+        campaign_type=payload.campaign_type or "",
+    )
+    return {
+        "success": True,
+        "message": f"Email feedback recorded as {payload.action}.",
+        "lead_id": lead_id,
+        "subject": subject,
+        "body": body,
+        **result,
+    }
+
+
+@router.get("/learning/stats")
+async def learning_stats():
+    return EmailLearningService.admin_stats()
+
+
+@router.get("/learning/history")
+async def learning_history(
+    status: str = Query(default="all"),
+    active: str = Query(default="true"),
+    campaign_type: str = Query(default=""),
+):
+    return EmailLearningService.admin_history(status=status, active=active, campaign_type=campaign_type)
+
+
+@router.patch("/learning/history/{history_id}")
+async def update_learning_review(history_id: int, payload: LearningReviewRequest):
+    record = EmailLearningService.update_admin_review(history_id, payload.action, payload.admin_note or "")
+    if not record:
+        raise HTTPException(status_code=404, detail="Learning record not found.")
+    return record
+
+
+@router.patch("/learning/history/{history_id}/active")
+async def update_learning_active(history_id: int, payload: LearningActiveRequest):
+    record = EmailLearningService.set_learning_active(history_id, payload.is_active, payload.admin_note or "")
+    if not record:
+        raise HTTPException(status_code=404, detail="Learning record not found.")
+    return record
+
+
+@router.delete("/learning/history/{history_id}")
+async def remove_learning_record(history_id: int):
+    record = EmailLearningService.set_learning_active(history_id, False, "Removed from learning by admin.")
+    if not record:
+        raise HTTPException(status_code=404, detail="Learning record not found.")
+    return record
+
+
+@router.post("/validate-emails-csv", response_model=BatchEmailValidationResponse)
+async def validate_emails_from_csv(file: UploadFile = File(...)):
+    rows, email_col = await _process_csv_file(file, "email")
+    results, rows_to_save = [], []
+    stats = {"valid": 0, "invalid": 0, "risky": 0}
+
+    for row in rows:
+        email = row.get(email_col, "").strip()
+        if not email:
+            continue
+
+        validation = await EmailService.validate_email(email)
+        status = validation.get("status", "error")
+        if status in stats:
+            stats[status] += 1
+
+        score = LeadScoringService.calculate_score(
+            {
+                "email_status": status,
+                "phone_status": row.get("phone_validation_status", ""),
+                "source": row.get("source", ""),
+                "budget": row.get("budget", ""),
+                "timeline": row.get("timeline", ""),
+                "message": row.get("message", ""),
+            }
+        )
+        row.update(
+            {
+                "email_validation_status": status,
+                "email_quality_score": validation.get("score", 0.0),
+                "email_validation_reason": validation.get("reason", ""),
+                "lead_score": score["lead_score"],
+                "score_band": score["score_band"],
+                "score_breakdown": score["score_breakdown"],
+            }
+        )
+        rows_to_save.append(row)
+        results.append(
+            EmailValidationResult(
+                email=email,
+                status=status,
+                score=validation.get("score", 0.0),
+                reason=validation.get("reason"),
+            )
+        )
+
+    output_file = _save_results(rows_to_save, file.filename, "email_validation")
+    return BatchEmailValidationResponse(
+        total_processed=len(results),
+        valid_count=stats["valid"],
+        invalid_count=stats["invalid"],
+        risky_count=stats["risky"],
+        results=results,
+        csv_file=output_file,
+    )
+
+
+@router.post("/validate-phones-csv", response_model=BatchPhoneValidationResponse)
+async def validate_phones_from_csv(file: UploadFile = File(...)):
+    rows, phone_col = await _process_csv_file(file, "phone")
+    twilio_client = TwilioLookupClient()
+    results, rows_to_save = [], []
+    stats = {"valid": 0, "invalid": 0}
+
+    for row in rows:
+        phone = row.get(phone_col, "").strip()
+        if not phone:
+            continue
+
+        lookup = _normalize_phone(phone)
+        validation = await twilio_client.lookup_number(lookup)
+        status = "valid" if validation and validation.get("Valid") and validation.get("Active") else "invalid"
+        sms_capable = str(validation.get("SMS_Capable", "")) if validation else ""
+        stats[status] += 1
+
+        score = LeadScoringService.calculate_score(
+            {
+                "email_status": row.get("email_validation_status", ""),
+                "phone_status": status,
+                "source": row.get("source", ""),
+                "budget": row.get("budget", ""),
+                "timeline": row.get("timeline", ""),
+                "message": row.get("message", ""),
+            }
+        )
+        row.update(
+            {
+                "phone_validation_status": status,
+                "SMS_Capable": sms_capable,
+                "lead_score": score["lead_score"],
+                "score_band": score["score_band"],
+                "score_breakdown": score["score_breakdown"],
+            }
+        )
+        rows_to_save.append(row)
+        results.append(
+            PhoneValidationResult(
+                phone=phone,
+                status=status,
+                sms_capable=sms_capable,
+                details=validation if isinstance(validation, dict) else {"raw": str(validation)},
+            )
+        )
+
+    output_file = _save_results(rows_to_save, file.filename, "phone_validation")
+    return BatchPhoneValidationResponse(
+        total_processed=len(results),
+        valid_count=stats["valid"],
+        invalid_count=stats["invalid"],
+        results=results,
+        csv_file=output_file,
+    )
+
+
+@router.post("/send-test-email", response_model=SendEmailResponse)
+async def send_test_email(payload: SendTestEmailRequest):
+    subject = f"Property options for {payload.location_preference or 'your requirement'}"
+    payload_data = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    body = EmailSenderService.build_property_followup_body(payload_data)
+    result = await EmailSenderService.send_email(payload.to_email, subject, body)
+
+    return SendEmailResponse(
+        success=result["success"],
+        message=result["message"],
+        to_email=payload.to_email,
+        subject=subject,
+    )
+
+
+async def _process_csv_file(file: UploadFile, column_name: str):
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Invalid file format. Please upload a CSV file.")
+
+    content = await file.read()
+    try:
+        decoded = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail="CSV must be UTF-8 encoded.") from exc
+
+    reader = csv.DictReader(io.StringIO(decoded))
+    rows = list(reader)
+    if not rows:
+        raise HTTPException(status_code=400, detail="CSV file is empty.")
+
+    column = next((key for key in rows[0].keys() if key.lower() == column_name.lower()), None)
+    if not column:
+        raise HTTPException(status_code=400, detail=f"Column '{column_name}' not found in CSV.")
+
+    return rows, column
+
+
+def _save_results(rows, original_filename, prefix):
+    os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
+    output_filename = f"{prefix}_{original_filename}"
+    output_path = os.path.join(settings.OUTPUT_DIR, output_filename)
+
+    if rows:
+        with open(output_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows(rows)
+
+    return output_path
+
+
+def _normalize_phone(phone: str) -> str:
+    digits = "".join(filter(str.isdigit, phone))
+    if len(digits) == 10:
+        return f"+1{digits}"
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"+{digits}"
+    if len(digits) == 12 and digits.startswith("91"):
+        return f"+{digits}"
+    return phone
+
+
+def _should_auto_generate_draft(lead: dict) -> bool:
+    return (
+        lead.get("validation_status") == "Valid"
+        and lead.get("score_band") == "Hot"
+        and not lead.get("email_draft_subject")
+        and not lead.get("email_draft_body")
+    )
+
+
+def _format_whatsapp_body(body: str) -> str:
+    lines = [line.strip() for line in str(body or "").splitlines()]
+    compact = "\n".join(line for line in lines if line)
+    return compact[:4096]
+
+
+@router.get("/{lead_id}")
+async def get_lead(lead_id: int):
+    lead = LeadService.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found.")
+    lead["messages"] = LeadService.get_messages(lead_id)
+    return lead
+
+
+@router.post("/{lead_id}/send-followup")
+async def send_followup(lead_id: int):
+    result = await FollowupService.send_followup(lead_id)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
+
+
+@router.post("/{lead_id}/mark-replied")
+async def mark_replied(lead_id: int, payload: MarkRepliedRequest):
+    lead = LeadService.mark_replied(lead_id, payload.reply_text or "")
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found.")
+    return lead

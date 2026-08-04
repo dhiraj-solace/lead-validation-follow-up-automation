@@ -168,6 +168,11 @@ class CallScriptRequest(BaseModel):
     script: str
 
 
+class CallPreferencesRequest(BaseModel):
+    call_consent: bool = True
+    do_not_call: bool = False
+
+
 class AppSettingsRequest(BaseModel):
     auto_email_send_enabled: bool
 

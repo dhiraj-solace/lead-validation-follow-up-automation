@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { apiPost } from "@/lib/api";
+import { apiPatch, apiPost } from "@/lib/api";
 import LocalPhoneOutlinedIcon from "@mui/icons-material/LocalPhoneOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import {
@@ -61,7 +61,46 @@ export default function CallLeadAction({
   const [error, setError] = useState("");
 
   if (!eligibility?.eligible) {
-    return null;
+    const consentOnly =
+      eligibility?.reasons?.length === 1 && eligibility.reasons[0] === "Lead has not consented to receive calls.";
+
+    const markCallConsent = async () => {
+      setLoading("consent");
+      setError("");
+      setStatus("");
+      try {
+        await apiPatch(`/${leadId}/call-preferences`, { call_consent: true, do_not_call: false });
+        setStatus("Call consent marked. Refreshing call eligibility...");
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not update call consent");
+      } finally {
+        setLoading("");
+      }
+    };
+
+    return (
+      <Stack spacing={1.1} sx={{ mb: 1.25 }}>
+        <Alert severity="info">
+          <Typography sx={{ fontWeight: 850 }} variant="body2">
+            Call is unavailable right now.
+          </Typography>
+          <Typography variant="body2">{eligibility?.reasons?.join(" ") || "Lead is not eligible for calling."}</Typography>
+        </Alert>
+        {consentOnly ? (
+          <Button
+            disabled={Boolean(loading)}
+            onClick={markCallConsent}
+            startIcon={<LocalPhoneOutlinedIcon />}
+            variant="outlined"
+          >
+            {loading === "consent" ? "Updating..." : "Mark Call Consent"}
+          </Button>
+        ) : null}
+        {error ? <Alert severity="error">{error}</Alert> : null}
+        {status ? <Alert severity="success">{status}</Alert> : null}
+      </Stack>
+    );
   }
 
   async function openDialog() {

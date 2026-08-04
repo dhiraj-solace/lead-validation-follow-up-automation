@@ -12,6 +12,7 @@ from src.app.models.schemas import (
     AppSettingsRequest,
     BatchEmailValidationResponse,
     BatchPhoneValidationResponse,
+    CallPreferencesRequest,
     CallScriptRequest,
     EmailDraftRequest,
     EmailDraftResponse,
@@ -279,6 +280,14 @@ async def send_whatsapp_message(lead_id: int):
 @router.post("/{lead_id:int}/call-script")
 async def generate_call_script(lead_id: int):
     return VoiceCallService.generate_script(lead_id)
+
+
+@router.patch("/{lead_id:int}/call-preferences")
+async def update_call_preferences(lead_id: int, payload: CallPreferencesRequest):
+    result = LeadService.update_call_preferences(lead_id, payload.call_consent, payload.do_not_call)
+    if not result["success"]:
+        raise HTTPException(status_code=404, detail=result["message"])
+    return result
 
 
 @router.post("/{lead_id:int}/calls")

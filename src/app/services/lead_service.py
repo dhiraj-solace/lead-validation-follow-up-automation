@@ -244,6 +244,28 @@ class LeadService:
         return {"success": True, "message": f"Deleted lead #{lead_id}.", "lead_id": lead_id}
 
     @staticmethod
+    def update_call_preferences(lead_id: int, call_consent: bool, do_not_call: bool = False) -> dict:
+        lead = LeadService.get_lead(lead_id)
+        if not lead:
+            return {"success": False, "message": "Lead not found."}
+
+        execute(
+            """
+            UPDATE leads
+            SET call_consent = ?,
+                do_not_call = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (1 if call_consent else 0, 1 if do_not_call else 0, lead_id),
+        )
+        return {
+            "success": True,
+            "message": "Call preferences updated.",
+            "lead": LeadService.get_lead(lead_id),
+        }
+
+    @staticmethod
     def find_duplicate(email: str, phone: str) -> dict | None:
         if email:
             lead = fetch_one(

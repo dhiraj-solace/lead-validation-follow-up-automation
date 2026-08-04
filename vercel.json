@@ -24,6 +24,18 @@
       "dest": "api/index.py"
     },
     {
+      "src": "/docs",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/docs/(.*)",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/redoc",
+      "dest": "api/index.py"
+    },
+    {
       "src": "/uploads/(.*)",
       "dest": "api/index.py"
     },

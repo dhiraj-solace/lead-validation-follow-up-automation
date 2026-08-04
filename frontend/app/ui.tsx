@@ -140,12 +140,12 @@ export function EmptyState({ title, description }: { title: string; description:
   );
 }
 
-export function ScoreChip({ band }: { band?: "Hot" | "Warm" | "Cold" | string }) {
+export function ScoreChip({ band }: { band?: "Hot" | "Warm" | "Cold" | string | null }) {
   const safeBand = band === "Hot" || band === "Warm" || band === "Cold" ? band : "Cold";
   return <Chip label={safeBand} size="small" sx={{ ...scoreStyles[safeBand], fontWeight: 850 }} />;
 }
 
-export function ValidationChip({ status }: { status?: "Valid" | "Invalid" | "Duplicate" | "Pending" | string }) {
+export function ValidationChip({ status }: { status?: "Valid" | "Invalid" | "Duplicate" | "Pending" | string | null }) {
   const safeStatus =
     status === "Valid" || status === "Invalid" || status === "Duplicate" || status === "Pending" ? status : "Pending";
   return <Chip label={safeStatus} size="small" sx={{ ...validationStyles[safeStatus], fontWeight: 850 }} />;

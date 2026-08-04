@@ -379,7 +379,7 @@ function formatRequirement(lead: Lead) {
   return [lead.configuration, lead.property_type].filter(Boolean).join(" ") || "Property requirement";
 }
 
-function compactRemark(value?: string) {
+function compactRemark(value?: string | null) {
   if (!value) {
     return "No validation remarks";
   }

@@ -1,5 +1,31 @@
 export const API_BASE_URL = resolveApiBaseUrl();
 
+export type LeadMessage = {
+  id: number;
+  channel?: string;
+  subject: string;
+  body: string;
+  status: string;
+  direction: string;
+  sent_at: string;
+};
+
+export type LeadCall = {
+  id: number;
+  call_sid?: string;
+  status: string;
+  script: string;
+  duration?: number;
+  recording_sid?: string;
+  recording_url?: string;
+  recording_status?: string;
+  recording_duration?: number;
+  recording_available_at?: string;
+  called_at?: string;
+  agent_name?: string;
+  error_message?: string;
+};
+
 export type Lead = {
   id: number;
   name: string;
@@ -31,8 +57,8 @@ export type Lead = {
   do_not_call?: boolean | number | null;
   call_consent?: boolean | number | null;
   call_eligibility?: Record<string, unknown> | null;
-  messages?: Array<Record<string, unknown>>;
-  calls?: Array<Record<string, unknown>>;
+  messages?: LeadMessage[];
+  calls?: LeadCall[];
   [key: string]: unknown;
 };
 

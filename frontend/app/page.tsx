@@ -15,6 +15,9 @@ import {
 } from "@mui/material";
 import { EmptyState, MetricCard, PageHeader, PanelCard, ScoreChip } from "./ui";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type Dashboard = {
   total: number;
   hot: number;

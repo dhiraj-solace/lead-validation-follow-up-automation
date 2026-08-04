@@ -129,6 +129,11 @@ function resolveApiBaseUrl() {
     return "/api/v1/leads";
   }
 
+  const productionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (productionUrl) {
+    return `https://${productionUrl}/api/v1/leads`;
+  }
+
   const vercelUrl = process.env.VERCEL_URL?.trim();
   if (vercelUrl) {
     return `https://${vercelUrl}/api/v1/leads`;

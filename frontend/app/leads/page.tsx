@@ -27,6 +27,9 @@ import {
 import { DraftStatusChip, EmailStatusChip, EmptyState, PageHeader, PanelCard, ScoreChip, ValidationChip } from "../ui";
 import DeleteLeadButton from "./delete-lead-button";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function LeadsPage() {
   const leads = await apiGet<Lead[]>("").catch(() => []);
   const totalLeads = leads.length;

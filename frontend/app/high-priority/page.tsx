@@ -15,6 +15,9 @@ import {
 } from "@mui/material";
 import { DraftStatusChip, EmailStatusChip, EmptyState, PageHeader, PanelCard, ScoreChip } from "../ui";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function HighPriorityPage() {
   const leads = await apiGet<Lead[]>("/high-priority").catch(() => []);
 

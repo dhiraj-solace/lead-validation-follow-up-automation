@@ -198,3 +198,5 @@ docx_render_check/
 data/
 frontend/.next/
 frontend/node_modules/
+.env.example
+.env.example

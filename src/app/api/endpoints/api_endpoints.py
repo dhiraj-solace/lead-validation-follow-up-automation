@@ -167,7 +167,7 @@ async def load_demo_data(validate_contacts: bool = Query(default=True)):
     return await DemoDataService.load_demo_leads(validate_contacts=validate_contacts)
 
 
-@router.post("/{lead_id}/duplicates/replace")
+@router.post("/{lead_id:int}/duplicates/replace")
 async def replace_duplicate(lead_id: int, validate_contacts: bool = Query(default=True)):
     result = await LeadService.replace_duplicate(lead_id, validate_contacts=validate_contacts)
     if not result["success"]:
@@ -175,7 +175,7 @@ async def replace_duplicate(lead_id: int, validate_contacts: bool = Query(defaul
     return result
 
 
-@router.post("/{lead_id}/duplicates/skip")
+@router.post("/{lead_id:int}/duplicates/skip")
 async def skip_duplicate(lead_id: int):
     result = LeadService.skip_duplicate(lead_id)
     if not result["success"]:
@@ -183,7 +183,7 @@ async def skip_duplicate(lead_id: int):
     return result
 
 
-@router.delete("/{lead_id}")
+@router.delete("/{lead_id:int}")
 async def delete_lead(lead_id: int):
     result = LeadService.delete_lead(lead_id)
     if not result["success"]:
@@ -191,7 +191,7 @@ async def delete_lead(lead_id: int):
     return result
 
 
-@router.post("/{lead_id}/generate-email", response_model=EmailDraftResponse)
+@router.post("/{lead_id:int}/generate-email", response_model=EmailDraftResponse)
 async def generate_email(lead_id: int):
     result = AIEmailService.generate_draft(lead_id)
     if not result["success"]:
@@ -199,7 +199,7 @@ async def generate_email(lead_id: int):
     return result
 
 
-@router.post("/{lead_id}/email-draft", response_model=EmailDraftResponse)
+@router.post("/{lead_id:int}/email-draft", response_model=EmailDraftResponse)
 async def save_email_draft(lead_id: int, payload: EmailDraftRequest):
     lead = LeadService.get_lead(lead_id)
     if not lead:
@@ -214,7 +214,7 @@ async def save_email_draft(lead_id: int, payload: EmailDraftRequest):
     }
 
 
-@router.post("/{lead_id}/send-email-draft", response_model=EmailDraftResponse)
+@router.post("/{lead_id:int}/send-email-draft", response_model=EmailDraftResponse)
 async def send_email_draft(lead_id: int, payload: EmailDraftRequest):
     result = await AIEmailService.send_draft(lead_id, payload.subject, payload.body)
     if not result["success"]:
@@ -222,7 +222,7 @@ async def send_email_draft(lead_id: int, payload: EmailDraftRequest):
     return result
 
 
-@router.post("/{lead_id}/send-whatsapp")
+@router.post("/{lead_id:int}/send-whatsapp")
 async def send_whatsapp_message(lead_id: int):
     lead = LeadService.get_lead(lead_id)
     if not lead:
@@ -258,17 +258,17 @@ async def send_whatsapp_message(lead_id: int):
     return result
 
 
-@router.post("/{lead_id}/call-script")
+@router.post("/{lead_id:int}/call-script")
 async def generate_call_script(lead_id: int):
     return VoiceCallService.generate_script(lead_id)
 
 
-@router.post("/{lead_id}/calls")
+@router.post("/{lead_id:int}/calls")
 async def start_voice_call(lead_id: int, payload: CallScriptRequest):
     return VoiceCallService.start_call(lead_id, payload.script)
 
 
-@router.get("/{lead_id}/calls")
+@router.get("/{lead_id:int}/calls")
 async def lead_call_history(lead_id: int):
     lead = LeadService.get_lead(lead_id)
     if not lead:
@@ -276,12 +276,12 @@ async def lead_call_history(lead_id: int):
     return VoiceCallService.history_for_lead(lead_id)
 
 
-@router.get("/calls/{call_id}/twiml")
+@router.get("/calls/{call_id:int}/twiml")
 async def call_twiml(call_id: int):
     return VoiceCallService.twiml_response(call_id)
 
 
-@router.post("/calls/{call_id}/status")
+@router.post("/calls/{call_id:int}/status")
 async def call_status_callback(
     call_id: int,
     CallStatus: str = Form(default=""),
@@ -291,7 +291,7 @@ async def call_status_callback(
     return VoiceCallService.update_status(call_id, CallStatus, CallDuration, CallSid)
 
 
-@router.post("/calls/{call_id}/recording")
+@router.post("/calls/{call_id:int}/recording")
 async def call_recording_callback(
     call_id: int,
     RecordingSid: str = Form(default=""),
@@ -310,7 +310,7 @@ async def call_recording_callback(
     )
 
 
-@router.post("/{lead_id}/email-feedback", response_model=EmailDraftResponse)
+@router.post("/{lead_id:int}/email-feedback", response_model=EmailDraftResponse)
 async def record_email_feedback(lead_id: int, payload: EmailFeedbackRequest):
     lead = LeadService.get_lead(lead_id)
     if not lead:
@@ -356,7 +356,7 @@ async def learning_history(
     return EmailLearningService.admin_history(status=status, active=active, campaign_type=campaign_type)
 
 
-@router.patch("/learning/history/{history_id}")
+@router.patch("/learning/history/{history_id:int}")
 async def update_learning_review(history_id: int, payload: LearningReviewRequest):
     record = EmailLearningService.update_admin_review(history_id, payload.action, payload.admin_note or "")
     if not record:
@@ -364,7 +364,7 @@ async def update_learning_review(history_id: int, payload: LearningReviewRequest
     return record
 
 
-@router.patch("/learning/history/{history_id}/active")
+@router.patch("/learning/history/{history_id:int}/active")
 async def update_learning_active(history_id: int, payload: LearningActiveRequest):
     record = EmailLearningService.set_learning_active(history_id, payload.is_active, payload.admin_note or "")
     if not record:
@@ -372,7 +372,7 @@ async def update_learning_active(history_id: int, payload: LearningActiveRequest
     return record
 
 
-@router.delete("/learning/history/{history_id}")
+@router.delete("/learning/history/{history_id:int}")
 async def remove_learning_record(history_id: int):
     record = EmailLearningService.set_learning_active(history_id, False, "Removed from learning by admin.")
     if not record:
@@ -582,7 +582,7 @@ def _format_whatsapp_body(body: str) -> str:
     return compact[:4096]
 
 
-@router.get("/{lead_id}")
+@router.get("/{lead_id:int}")
 async def get_lead(lead_id: int):
     lead = LeadService.get_lead(lead_id)
     if not lead:
@@ -593,7 +593,7 @@ async def get_lead(lead_id: int):
     return lead
 
 
-@router.post("/{lead_id}/send-followup")
+@router.post("/{lead_id:int}/send-followup")
 async def send_followup(lead_id: int):
     result = await FollowupService.send_followup(lead_id)
     if not result["success"]:
@@ -601,7 +601,7 @@ async def send_followup(lead_id: int):
     return result
 
 
-@router.post("/{lead_id}/mark-replied")
+@router.post("/{lead_id:int}/mark-replied")
 async def mark_replied(lead_id: int, payload: MarkRepliedRequest):
     lead = LeadService.mark_replied(lead_id, payload.reply_text or "")
     if not lead:

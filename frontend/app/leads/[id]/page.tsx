@@ -333,7 +333,7 @@ function normalizeStatus(value: string) {
   return toTitleCase(value) || "Pending";
 }
 
-function providerLabel(value?: string) {
+function providerLabel(value?: string | null) {
   const labels: Record<string, string> = {
     gmail: "Gmail / Google Workspace",
     outlook: "Outlook / Microsoft 365",

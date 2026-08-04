@@ -29,3 +29,13 @@ def startup():
 @app.get("/")
 def root():
     return {"message": "Welcome to Lead Validation API"}
+
+
+@app.get("/api")
+def api_health():
+    return {"status": "ok", "message": "Lead Validation API is running"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

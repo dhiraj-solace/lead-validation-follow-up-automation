@@ -12,6 +12,10 @@ def env_value(name: str, default: str = "") -> str:
     return value
 
 
+def default_data_dir() -> str:
+    return "/tmp/lead-validation-data" if os.getenv("VERCEL") else "data"
+
+
 class Settings:
     PROJECT_NAME: str = "Real Estate Lead Automation API"
     VERSION: str = "1.0.0"
@@ -47,10 +51,10 @@ class Settings:
     WHATSAPP_GRAPH_BASE_URL: str = env_value("WHATSAPP_GRAPH_BASE_URL", "https://graph.facebook.com/v20.0")
     WHATSAPP_DEFAULT_COUNTRY_CODE: str = env_value("WHATSAPP_DEFAULT_COUNTRY_CODE", "91")
 
-    DATA_DIR: str = os.getenv("DATA_DIR", "data")
+    DATA_DIR: str = os.getenv("DATA_DIR", default_data_dir())
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", os.path.join(DATA_DIR, "lead_automation.sqlite3"))
-    UPLOAD_DIR: str = "uploads"
-    OUTPUT_DIR: str = "outputs"
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", os.path.join(DATA_DIR, "uploads"))
+    OUTPUT_DIR: str = os.getenv("OUTPUT_DIR", os.path.join(DATA_DIR, "outputs"))
 
     CSV_COLUMNS = {
         "email": ["Email", "email", "email_address", "business_email", "business_email_address"],

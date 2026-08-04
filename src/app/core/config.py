@@ -20,6 +20,7 @@ class Settings:
     PROJECT_NAME: str = "Real Estate Lead Automation API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
+    LOG_LEVEL: str = env_value("LOG_LEVEL", "INFO").upper()
 
     TWILIO_ACCOUNT_SID: str = env_value("TWILIO_ACCOUNT_SID")
     TWILIO_AUTH_TOKEN: str = env_value("TWILIO_AUTH_TOKEN")

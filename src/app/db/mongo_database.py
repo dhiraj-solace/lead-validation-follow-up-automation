@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 import re
 from typing import Any, Iterable
 
@@ -10,11 +11,13 @@ from src.app.core.config import settings
 
 
 client: MongoClient | None = None
+logger = logging.getLogger(__name__)
 
 
 def _db():
     global client
     if client is None:
+        logger.info("mongo.connect.start db=%s", settings.MONGODB_DB_NAME)
         client = MongoClient(settings.MONGODB_URI, serverSelectionTimeoutMS=8000)
     return client[settings.MONGODB_DB_NAME]
 
@@ -65,6 +68,7 @@ def _lower(value: object) -> str:
 def init_db() -> None:
     db = _db()
     db.command("ping")
+    logger.info("mongo.ping.ok db=%s", settings.MONGODB_DB_NAME)
     for name in ["agents", "leads", "email_templates", "message_logs", "email_generation_history", "call_logs"]:
         db[name].create_index("id", unique=True)
     db.leads.create_index("email")
@@ -74,6 +78,7 @@ def init_db() -> None:
     db.call_logs.create_index([("lead_id", ASCENDING), ("called_at", DESCENDING)])
     db.email_generation_history.create_index([("lead_id", ASCENDING), ("id", DESCENDING)])
     _seed_defaults()
+    logger.info("mongo.init.complete db=%s", settings.MONGODB_DB_NAME)
 
 
 def fetch_one(query: str, params: Iterable[Any] = ()) -> dict | None:

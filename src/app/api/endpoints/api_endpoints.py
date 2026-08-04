@@ -1,5 +1,6 @@
 import csv
 import io
+import logging
 import os
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
@@ -42,6 +43,7 @@ from src.app.services.voice_call_service import VoiceCallService
 from src.app.services.whatsapp_sender_service import WhatsAppSenderService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/dashboard")
@@ -64,7 +66,13 @@ async def upload_leads(
     file: UploadFile = File(...),
     validate_contacts: bool = Query(default=True),
 ):
+    logger.info(
+        "upload_leads.start filename=%s validate_contacts=%s",
+        file.filename,
+        validate_contacts,
+    )
     rows = await FileParserService.parse_lead_upload(file)
+    logger.info("upload_leads.parsed filename=%s rows=%s", file.filename, len(rows))
     leads = []
     created = 0
     merged = 0
@@ -98,10 +106,10 @@ async def upload_leads(
                             auto_sent += 1
                             lead = LeadService.get_lead(lead["id"]) or lead
             except Exception:
-                pass
+                logger.exception("upload_leads.auto_email_failed lead_id=%s", lead.get("id"))
         refreshed_leads.append(lead)
 
-    return UploadLeadsResponse(
+    response = UploadLeadsResponse(
         total_rows=len(rows),
         created=created,
         merged_duplicates=merged,
@@ -115,6 +123,16 @@ async def upload_leads(
         cold=sum(1 for lead in refreshed_leads if lead["score_band"] == "Cold"),
         leads=refreshed_leads,
     )
+    logger.info(
+        "upload_leads.complete filename=%s total_rows=%s created=%s merged=%s auto_drafted=%s auto_sent=%s",
+        file.filename,
+        response.total_rows,
+        response.created,
+        response.merged_duplicates,
+        response.auto_drafted,
+        response.auto_sent,
+    )
+    return response
 
 
 @router.get("")

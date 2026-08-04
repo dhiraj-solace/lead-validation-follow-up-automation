@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS leads (
     email_draft_body TEXT DEFAULT '',
     email_sent_status TEXT DEFAULT 'not_sent',
     email_sent_at TEXT,
+    call_consent INTEGER DEFAULT 0,
+    do_not_call INTEGER DEFAULT 0,
     duplicate_of INTEGER,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -123,6 +125,32 @@ CREATE TABLE IF NOT EXISTS email_generation_history (
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(lead_id) REFERENCES leads(id),
     FOREIGN KEY(template_id) REFERENCES email_templates(id)
+);
+
+CREATE TABLE IF NOT EXISTS call_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id INTEGER NOT NULL,
+    agent_id INTEGER,
+    call_sid TEXT DEFAULT '',
+    script TEXT DEFAULT '',
+    status TEXT DEFAULT 'queued',
+    duration INTEGER DEFAULT 0,
+    recording_sid TEXT DEFAULT '',
+    recording_url TEXT DEFAULT '',
+    recording_status TEXT DEFAULT '',
+    recording_duration INTEGER DEFAULT 0,
+    recording_available_at TEXT,
+    error_message TEXT DEFAULT '',
+    called_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(lead_id) REFERENCES leads(id),
+    FOREIGN KEY(agent_id) REFERENCES agents(id)
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT DEFAULT '',
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 """
 
@@ -204,6 +232,8 @@ def _migrate_existing_schema(conn: sqlite3.Connection) -> None:
         "email_draft_body": "TEXT DEFAULT ''",
         "email_sent_status": "TEXT DEFAULT 'not_sent'",
         "email_sent_at": "TEXT",
+        "call_consent": "INTEGER DEFAULT 0",
+        "do_not_call": "INTEGER DEFAULT 0",
         "duplicate_of": "INTEGER",
         "created_at": "TEXT DEFAULT CURRENT_TIMESTAMP",
         "updated_at": "TEXT DEFAULT CURRENT_TIMESTAMP",
@@ -234,6 +264,25 @@ def _migrate_existing_schema(conn: sqlite3.Connection) -> None:
         UPDATE email_generation_history
         SET review_status = user_action
         WHERE review_status = '' OR review_status IS NULL
+        """
+    )
+
+    call_columns = {row["name"] for row in conn.execute("PRAGMA table_info(call_logs)").fetchall()}
+    call_additions = {
+        "recording_sid": "TEXT DEFAULT ''",
+        "recording_url": "TEXT DEFAULT ''",
+        "recording_status": "TEXT DEFAULT ''",
+        "recording_duration": "INTEGER DEFAULT 0",
+        "recording_available_at": "TEXT",
+    }
+    for column, definition in call_additions.items():
+        if column not in call_columns:
+            conn.execute(f"ALTER TABLE call_logs ADD COLUMN {column} {definition}")
+
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO app_settings (key, value)
+        VALUES ('auto_email_send_enabled', 'false')
         """
     )
 

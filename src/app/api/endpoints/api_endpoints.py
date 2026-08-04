@@ -2,14 +2,16 @@ import csv
 import io
 import os
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from src.app.core.config import settings
 from src.app.db.database import execute
 from src.app.models.schemas import (
     AgentCreateRequest,
+    AppSettingsRequest,
     BatchEmailValidationResponse,
     BatchPhoneValidationResponse,
+    CallScriptRequest,
     EmailDraftRequest,
     EmailDraftResponse,
     EmailFeedbackRequest,
@@ -24,6 +26,7 @@ from src.app.models.schemas import (
     UploadLeadsResponse,
 )
 from src.app.services.agent_service import AgentService
+from src.app.services.app_settings_service import AppSettingsService
 from src.app.services.ai_email_service import AIEmailService
 from src.app.services.demo_data_service import DemoDataService
 from src.app.services.email_sender_service import EmailSenderService
@@ -35,6 +38,7 @@ from src.app.services.lead_service import LeadService
 from src.app.services.phone_service import TwilioLookupClient
 from src.app.services.scoring_service import LeadScoringService
 from src.app.services.template_service import TemplateService
+from src.app.services.voice_call_service import VoiceCallService
 from src.app.services.whatsapp_sender_service import WhatsAppSenderService
 
 router = APIRouter()
@@ -43,6 +47,16 @@ router = APIRouter()
 @router.get("/dashboard")
 async def dashboard():
     return LeadService.dashboard()
+
+
+@router.get("/settings")
+async def app_settings():
+    return AppSettingsService.get_settings()
+
+
+@router.patch("/settings")
+async def update_app_settings(payload: AppSettingsRequest):
+    return AppSettingsService.update_settings(payload.auto_email_send_enabled)
 
 
 @router.post("/upload-leads", response_model=UploadLeadsResponse)
@@ -64,6 +78,8 @@ async def upload_leads(
             created += 1
 
     auto_drafted = 0
+    auto_sent = 0
+    auto_email_send_enabled = AppSettingsService.auto_email_send_enabled()
     refreshed_leads = []
     for lead in leads:
         if _should_auto_generate_draft(lead):
@@ -72,6 +88,15 @@ async def upload_leads(
                 if draft_result.get("success"):
                     auto_drafted += 1
                     lead = LeadService.get_lead(lead["id"]) or lead
+                    if auto_email_send_enabled and _should_auto_send_email(lead):
+                        send_result = await AIEmailService.send_draft(
+                            lead["id"],
+                            lead.get("email_draft_subject"),
+                            lead.get("email_draft_body"),
+                        )
+                        if send_result.get("success"):
+                            auto_sent += 1
+                            lead = LeadService.get_lead(lead["id"]) or lead
             except Exception:
                 pass
         refreshed_leads.append(lead)
@@ -81,6 +106,7 @@ async def upload_leads(
         created=created,
         merged_duplicates=merged,
         auto_drafted=auto_drafted,
+        auto_sent=auto_sent,
         valid=sum(1 for lead in refreshed_leads if lead["validation_status"] == "Valid"),
         invalid=sum(1 for lead in refreshed_leads if lead["validation_status"] == "Invalid"),
         duplicate=sum(1 for lead in refreshed_leads if lead["validation_status"] == "Duplicate"),
@@ -222,6 +248,58 @@ async def send_whatsapp_message(lead_id: int):
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
     return result
+
+
+@router.post("/{lead_id}/call-script")
+async def generate_call_script(lead_id: int):
+    return VoiceCallService.generate_script(lead_id)
+
+
+@router.post("/{lead_id}/calls")
+async def start_voice_call(lead_id: int, payload: CallScriptRequest):
+    return VoiceCallService.start_call(lead_id, payload.script)
+
+
+@router.get("/{lead_id}/calls")
+async def lead_call_history(lead_id: int):
+    lead = LeadService.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found.")
+    return VoiceCallService.history_for_lead(lead_id)
+
+
+@router.get("/calls/{call_id}/twiml")
+async def call_twiml(call_id: int):
+    return VoiceCallService.twiml_response(call_id)
+
+
+@router.post("/calls/{call_id}/status")
+async def call_status_callback(
+    call_id: int,
+    CallStatus: str = Form(default=""),
+    CallDuration: str = Form(default="0"),
+    CallSid: str = Form(default=""),
+):
+    return VoiceCallService.update_status(call_id, CallStatus, CallDuration, CallSid)
+
+
+@router.post("/calls/{call_id}/recording")
+async def call_recording_callback(
+    call_id: int,
+    RecordingSid: str = Form(default=""),
+    RecordingUrl: str = Form(default=""),
+    RecordingStatus: str = Form(default=""),
+    RecordingDuration: str = Form(default="0"),
+    CallSid: str = Form(default=""),
+):
+    return VoiceCallService.update_recording(
+        call_id=call_id,
+        recording_sid=RecordingSid,
+        recording_url=RecordingUrl,
+        recording_status=RecordingStatus,
+        recording_duration=RecordingDuration,
+        call_sid=CallSid,
+    )
 
 
 @router.post("/{lead_id}/email-feedback", response_model=EmailDraftResponse)
@@ -479,6 +557,17 @@ def _should_auto_generate_draft(lead: dict) -> bool:
     )
 
 
+def _should_auto_send_email(lead: dict) -> bool:
+    return (
+        lead.get("validation_status") == "Valid"
+        and lead.get("score_band") == "Hot"
+        and lead.get("email")
+        and lead.get("email_draft_subject")
+        and lead.get("email_draft_body")
+        and lead.get("email_sent_status") != "sent"
+    )
+
+
 def _format_whatsapp_body(body: str) -> str:
     lines = [line.strip() for line in str(body or "").splitlines()]
     compact = "\n".join(line for line in lines if line)
@@ -491,6 +580,8 @@ async def get_lead(lead_id: int):
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found.")
     lead["messages"] = LeadService.get_messages(lead_id)
+    lead["calls"] = VoiceCallService.history_for_lead(lead_id)
+    lead["call_eligibility"] = VoiceCallService.eligibility(lead)
     return lead
 
 

@@ -99,9 +99,9 @@ class LeadService:
                 budget, timeline, message, email_status, phone_status, sms_capable, carrier,
                 line_type, score, score_band, score_breakdown, validation_status, validation_remarks,
                 status, assigned_agent_id,
-                automation_status, next_followup_at
+                automation_status, next_followup_at, call_consent, do_not_call
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 enriched.get("name", ""),
@@ -128,6 +128,8 @@ class LeadService:
                 assigned_agent_id,
                 automation_status,
                 next_followup_at,
+                1 if LeadService._truthy(enriched.get("call_consent")) else 0,
+                1 if LeadService._truthy(enriched.get("do_not_call")) else 0,
             ),
         )
         return LeadService.get_lead(lead_id), False
@@ -173,6 +175,8 @@ class LeadService:
                 assigned_agent_id = ?,
                 automation_status = ?,
                 next_followup_at = ?,
+                call_consent = ?,
+                do_not_call = ?,
                 duplicate_of = NULL,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -202,6 +206,8 @@ class LeadService:
                 assigned_agent_id,
                 automation_status,
                 next_followup_at,
+                1 if LeadService._truthy(enriched.get("call_consent")) else 0,
+                1 if LeadService._truthy(enriched.get("do_not_call")) else 0,
                 original_id,
             ),
         )
@@ -370,6 +376,8 @@ class LeadService:
             "budget": lead.get("budget", ""),
             "timeline": lead.get("timeline", ""),
             "message": lead.get("message", ""),
+            "call_consent": lead.get("call_consent", 0),
+            "do_not_call": lead.get("do_not_call", 0),
         }
 
     @staticmethod
@@ -414,9 +422,10 @@ class LeadService:
             INSERT INTO leads (
                 name, email, phone, source, property_type, configuration, location_preference,
                 budget, timeline, message, email_status, phone_status, score, score_band,
-                score_breakdown, validation_status, validation_remarks, status, automation_status, duplicate_of
+                score_breakdown, validation_status, validation_remarks, status, automation_status, call_consent,
+                do_not_call, duplicate_of
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'skipped', 'skipped', ?, ?, ?, 'Duplicate', ?, 'Duplicate', 'stopped', ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'skipped', 'skipped', ?, ?, ?, 'Duplicate', ?, 'Duplicate', 'stopped', ?, ?, ?)
             """,
             (
                 row.get("name", ""),
@@ -433,6 +442,8 @@ class LeadService:
                 scoring["score_band"],
                 scoring["score_breakdown"],
                 " ".join(remarks),
+                1 if LeadService._truthy(row.get("call_consent")) else 0,
+                1 if LeadService._truthy(row.get("do_not_call")) else 0,
                 existing["id"],
             ),
         )
@@ -479,3 +490,7 @@ class LeadService:
         if len(digits) == 12 and digits.startswith("91"):
             return f"+{digits}"
         return phone
+
+    @staticmethod
+    def _truthy(value: object) -> bool:
+        return str(value or "").strip().lower() in {"1", "true", "yes", "y", "consented", "opted_in", "opted-in"}

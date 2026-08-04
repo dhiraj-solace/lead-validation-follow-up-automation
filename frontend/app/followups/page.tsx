@@ -30,8 +30,8 @@ export default async function FollowupsPage() {
         title="Queued follow-ups"
       >
         {queue.length ? (
-          <TableContainer sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
-            <Table sx={{ minWidth: 820 }}>
+          <TableContainer sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflowX: "auto" }}>
+            <Table size="small" sx={{ minWidth: 820 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Lead</TableCell>

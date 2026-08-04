@@ -1,16 +1,19 @@
 import { apiGet, Lead } from "@/lib/api";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
-import SpeedOutlinedIcon from "@mui/icons-material/SpeedOutlined";
-import { Box, Chip, Divider, LinearProgress, Stack, Typography } from "@mui/material";
+import { Box, Chip, Stack, Typography } from "@mui/material";
 import { EmailStatusChip, PanelCard, ScoreChip, ValidationChip } from "../../ui";
+import CallHistory, { CallLog } from "./call-history";
+import CallLeadAction from "./call-lead-action";
 import ConversationHistory from "./conversation-history";
 import EmailDraftPanel from "./email-draft-panel";
 import LeadActions from "./lead-actions";
 
 type Message = {
   id: number;
+  channel?: string;
   subject: string;
   body: string;
   status: string;
@@ -18,7 +21,14 @@ type Message = {
   sent_at: string;
 };
 
-function DetailRow({ label, value }: { label: string; value?: string | number | null }) {
+type CallEligibility = {
+  eligible: boolean;
+  reasons: string[];
+  minimum_score: number;
+  cooldown_hours: number;
+};
+
+function InfoGroup({ children, title }: { children: ReactNode; title: string }) {
   return (
     <Box
       sx={{
@@ -26,29 +36,113 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
         border: "1px solid",
         borderColor: "divider",
         borderRadius: 2,
-        minHeight: 54,
-        px: 1.35,
-        py: 0.9
+        height: "100%",
+        p: 1.35
       }}
     >
-      <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
-        {label}
+      <Typography color="primary.dark" sx={{ fontSize: 11, fontWeight: 950, textTransform: "uppercase" }}>
+        {title}
       </Typography>
-      <Typography color="text.primary" sx={{ fontSize: 14, fontWeight: 760, mt: 0.35, overflowWrap: "anywhere" }}>
-        {formatValue(value)}
-      </Typography>
+      <Stack spacing={0.85} sx={{ mt: 1 }}>
+        {children}
+      </Stack>
     </Box>
   );
 }
 
+function InfoRow({ label, value }: { label: string; value?: ReactNode }) {
+  return (
+    <Box
+      sx={{
+        alignItems: { xs: "flex-start", sm: "center" },
+        display: "grid",
+        gap: 0.8,
+        gridTemplateColumns: { xs: "1fr", sm: "112px minmax(0, 1fr)" },
+        minHeight: 30
+      }}
+    >
+      <Typography color="text.secondary" sx={{ fontSize: 10.5, fontWeight: 850, textTransform: "uppercase" }}>
+        {label}
+      </Typography>
+      {typeof value === "string" || typeof value === "number" || value == null ? (
+        <Typography color="text.primary" sx={{ fontSize: 13.5, fontWeight: 780, overflowWrap: "anywhere" }}>
+          {formatValue(value)}
+        </Typography>
+      ) : (
+        value
+      )}
+    </Box>
+  );
+}
+
+function NoteBlock({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <Box sx={{ bgcolor: "#ffffff", border: "1px solid", borderColor: "divider", borderRadius: 2, p: 1.25 }}>
+      <Typography color="text.secondary" sx={{ fontSize: 10.5, fontWeight: 850, textTransform: "uppercase" }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 13.5, fontWeight: 650, mt: 0.45, whiteSpace: "pre-wrap" }}>{formatValue(value)}</Typography>
+    </Box>
+  );
+}
+
+function StatusChip({ label, tone = "neutral" }: { label: string; tone?: "success" | "warning" | "danger" | "neutral" }) {
+  const palette = {
+    danger: { bgcolor: "#fdecea", color: "#b42318" },
+    neutral: { bgcolor: "#eef2f7", color: "#42526a" },
+    success: { bgcolor: "#dcfce7", color: "#087443" },
+    warning: { bgcolor: "#ffedd5", color: "#9a3412" }
+  }[tone];
+  return (
+    <Chip
+      label={label}
+      size="small"
+      sx={{ ...palette, borderRadius: 999, fontSize: 12, fontWeight: 850, height: 24, maxWidth: "100%" }}
+    />
+  );
+}
+
+function ScoreLabel({ score }: { score: number }) {
+  return (
+    <Chip
+      label={`Score: ${score}`}
+      size="small"
+      sx={{ bgcolor: "#e6f4f1", color: "#006b5c", fontSize: 12, fontWeight: 900, height: 24 }}
+    />
+  );
+}
+
+function booleanChip(yes: boolean, yesLabel: string, noLabel: string, yesTone: "success" | "danger" = "success") {
+  return <StatusChip label={yes ? yesLabel : noLabel} tone={yes ? yesTone : "neutral"} />;
+}
+
+function statusTone(value?: string | null): "success" | "warning" | "danger" | "neutral" {
+  const normalized = String(value || "").toLowerCase();
+  if (["active", "valid", "sent", "consented"].includes(normalized)) {
+    return "success";
+  }
+  if (["invalid", "failed", "rejected"].includes(normalized)) {
+    return "danger";
+  }
+  if (["pending", "not sent", "not_sent"].includes(normalized)) {
+    return "warning";
+  }
+  return "neutral";
+}
+
+function statusChip(value?: string | null) {
+  const label = toTitleCase(String(value || "Pending").replace(/_/g, " "));
+  return <StatusChip label={label} tone={statusTone(label)} />;
+}
+
 export default async function LeadDetailPage({ params }: { params: { id: string } }) {
-  const lead = await apiGet<Lead & { messages: Message[] }>(`/${params.id}`).catch(() => null);
+  const lead = await apiGet<Lead & { messages: Message[]; calls: CallLog[]; call_eligibility: CallEligibility }>(
+    `/${params.id}`
+  ).catch(() => null);
   if (!lead) notFound();
 
   const displayName = formatDisplayName(lead.name);
   const score = Math.max(0, Math.min(Number(lead.score) || 0, 100));
-  const scoreItems = parseScoreBreakdown(lead.score_breakdown, score);
-  const scoreTotal = Math.max(0, Math.min(scoreItems.reduce((total, item) => total + item.points, 0), 100));
   const emailAlreadySent = lead.email_sent_status === "sent";
 
   return (
@@ -69,120 +163,72 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
             Review profile, score, outreach draft, and follow-up status.
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+        <Stack
+          direction="row"
+          spacing={0.75}
+          sx={{
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 0.75,
+            justifyContent: { xs: "flex-start", md: "flex-end" },
+            maxWidth: { md: 420 }
+          }}
+        >
           <ValidationChip status={normalizeStatus(lead.validation_status || "Pending")} />
           <EmailStatusChip status={lead.email_sent_status} />
           <ScoreChip band={lead.score_band} />
+          <ScoreLabel score={score} />
         </Stack>
       </Stack>
 
-      <Box
-        sx={{
-          alignItems: "start",
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1.35fr) 340px" },
-          mb: 2
-        }}
+      <PanelCard
+        description={`${formatRequirement(lead)} in ${toTitleCase(lead.location_preference || "Any Location")}`}
+        icon={<PersonOutlineOutlinedIcon color="primary" />}
+        title="Lead Information"
+        sx={{ mb: 2 }}
       >
-        <PanelCard
-          description={`${formatRequirement(lead)} in ${toTitleCase(lead.location_preference || "Any Location")}`}
-          icon={<PersonOutlineOutlinedIcon color="primary" />}
-          title="Profile"
-        >
-          <Stack spacing={1.25}>
-            <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
-              <DetailRow label="Email" value={lead.email} />
-              <DetailRow label="Phone" value={lead.phone} />
-              <DetailRow label="Source" value={toTitleCase(lead.source)} />
-              <DetailRow label="Interest" value={formatRequirement(lead)} />
-              <DetailRow label="Preferred Location" value={toTitleCase(lead.location_preference)} />
-              <DetailRow label="Budget" value={lead.budget} />
-              <DetailRow label="Timeline" value={toTitleCase(lead.timeline)} />
-              <DetailRow label="Assigned Agent" value={toTitleCase(lead.assigned_agent_name || "Unassigned")} />
-              <DetailRow label="Agent Sender Email" value={lead.assigned_agent_email || "No assigned sender"} />
-              <DetailRow label="Agent Email Provider" value={providerLabel(lead.assigned_agent_email_provider)} />
-              <DetailRow label="Automation Status" value={toTitleCase(lead.automation_status)} />
-              <DetailRow label="Validation Remarks" value={sentenceCase(lead.validation_remarks)} />
-            </Box>
+        <Stack spacing={1.25}>
+          <Box
+            sx={{
+              display: "grid",
+              gap: 1.1,
+              gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }
+            }}
+          >
+            <InfoGroup title="Contact">
+              <InfoRow label="Email" value={lead.email} />
+              <InfoRow label="Phone" value={lead.phone} />
+              <InfoRow label="Source" value={toTitleCase(lead.source)} />
+            </InfoGroup>
 
-            {lead.message ? (
-              <Box sx={{ bgcolor: "#ffffff", border: "1px solid", borderColor: "divider", borderRadius: 2, p: 1.35 }}>
-                <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
-                  Lead Message
-                </Typography>
-                <Typography sx={{ fontSize: 14, mt: 0.5, whiteSpace: "pre-wrap" }}>{sentenceCase(lead.message)}</Typography>
-              </Box>
-            ) : null}
-          </Stack>
-        </PanelCard>
+            <InfoGroup title="Requirement">
+              <InfoRow label="Property Type" value={toTitleCase(lead.property_type)} />
+              <InfoRow label="Configuration" value={toTitleCase(lead.configuration)} />
+              <InfoRow label="Location" value={toTitleCase(lead.location_preference)} />
+              <InfoRow label="Budget" value={lead.budget} />
+              <InfoRow label="Timeline" value={toTitleCase(lead.timeline)} />
+            </InfoGroup>
 
-        <PanelCard
-          description="Score and scoring inputs."
-          icon={<SpeedOutlinedIcon color="primary" />}
-          title="Score"
-          sx={{ alignSelf: "start", width: "100%" }}
-        >
-          <Stack spacing={1.35}>
-            <Box sx={{ bgcolor: "#f8fafc", border: "1px solid", borderColor: "divider", borderRadius: 2.5, p: 1.6 }}>
-              <Stack direction="row" sx={{ alignItems: "flex-end", justifyContent: "space-between" }}>
-                <Box>
-                  <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
-                    Lead Score
-                  </Typography>
-                  <Typography sx={{ fontSize: 36, fontWeight: 950, lineHeight: 1, mt: 0.5 }}>
-                    {score}
-                    <Typography component="span" color="text.secondary" sx={{ fontSize: 16, fontWeight: 800 }}>
-                      /100
-                    </Typography>
-                  </Typography>
-                </Box>
-                <ScoreChip band={lead.score_band} />
-              </Stack>
-              <LinearProgress
-                value={score}
-                variant="determinate"
-                sx={{
-                  bgcolor: "#e7edf4",
-                  borderRadius: 99,
-                  height: 7,
-                  mt: 1.35,
-                  "& .MuiLinearProgress-bar": { bgcolor: "#166f5c", borderRadius: 99 }
-                }}
-              />
-            </Box>
+            <InfoGroup title="Assignment">
+              <InfoRow label="Agent" value={toTitleCase(lead.assigned_agent_name || "Unassigned")} />
+              <InfoRow label="Agent Email" value={lead.assigned_agent_email || "No assigned sender"} />
+              <InfoRow label="Provider" value={providerLabel(lead.assigned_agent_email_provider)} />
+            </InfoGroup>
 
-            <Box component="details" sx={{ "& summary": { cursor: "pointer", fontWeight: 850, outline: "none" } }}>
-              <Typography component="summary" color="text.secondary" sx={{ fontSize: 13 }}>
-                Scoring Details ({scoreTotal}/100)
-              </Typography>
-              <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", gap: 0.75, mt: 1 }}>
-              {scoreItems.map((item) => (
-                <Chip
-                  key={`${item.label}-${item.points}`}
-                  label={`${item.label} ${item.points > 0 ? "+" : ""}${item.points}`}
-                  size="small"
-                  sx={{
-                    bgcolor: item.points < 0 ? "#fdecea" : item.points === 0 ? "#eef2f7" : "#e5f7ef",
-                    color: item.points < 0 ? "#bf3b32" : item.points === 0 ? "#42526a" : "#0f7a55",
-                    fontWeight: 800,
-                    maxWidth: "100%"
-                  }}
-                />
-              ))}
-              </Stack>
-            </Box>
+            <InfoGroup title="Status">
+              <InfoRow label="Validation" value={statusChip(lead.validation_status || "Pending")} />
+              <InfoRow label="Automation" value={statusChip(lead.automation_status || "Not Started")} />
+              <InfoRow label="Call Consent" value={booleanChip(Boolean(lead.call_consent), "Consented", "Not Consented")} />
+              <InfoRow label="Do Not Call" value={booleanChip(Boolean(lead.do_not_call), "Yes", "No", "danger")} />
+            </InfoGroup>
+          </Box>
 
-            <Divider />
-            <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
-              <Typography color="text.secondary" sx={{ fontWeight: 850 }}>
-                Total
-              </Typography>
-              <Typography sx={{ fontWeight: 950 }}>{scoreTotal}/100</Typography>
-            </Stack>
-          </Stack>
-        </PanelCard>
-      </Box>
+          <Box sx={{ display: "grid", gap: 1.1, gridTemplateColumns: "1fr" }}>
+            <NoteBlock label="Validation Remarks" value={sentenceCase(lead.validation_remarks)} />
+            {lead.message ? <NoteBlock label="Lead Message" value={sentenceCase(lead.message)} /> : null}
+          </Box>
+        </Stack>
+      </PanelCard>
 
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.3fr) 360px" }, mb: 2 }}>
         <EmailDraftPanel
@@ -198,6 +244,13 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           icon={<CheckCircleOutlineOutlinedIcon color="primary" />}
           title="Next Actions"
         >
+          <CallLeadAction
+            assignedAgent={toTitleCase(lead.assigned_agent_name || "Unassigned")}
+            eligibility={lead.call_eligibility}
+            leadId={lead.id}
+            leadName={displayName}
+            maskedPhone={maskPhone(lead.phone || "")}
+          />
           <LeadActions compact leadId={lead.id} emailSentStatus={lead.email_sent_status || "not_sent"} />
           <Box sx={{ bgcolor: "#f8fafc", border: "1px solid", borderColor: "divider", borderRadius: 2, mt: 1.5, p: 1.35 }}>
             <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
@@ -219,6 +272,9 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           body: replaceRawLeadName(message.body, lead.name, displayName)
         }))}
       />
+      <Box sx={{ mt: 2 }}>
+        <CallHistory calls={lead.calls || []} />
+      </Box>
     </>
   );
 }
@@ -265,6 +321,14 @@ function replaceRawLeadName(value: string, rawName: string | undefined, displayN
   return value.split(rawName).join(displayName);
 }
 
+function maskPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 4) {
+    return "****";
+  }
+  return `${"*".repeat(Math.max(digits.length - 4, 4))}${digits.slice(-4)}`;
+}
+
 function normalizeStatus(value: string) {
   return toTitleCase(value) || "Pending";
 }
@@ -295,30 +359,4 @@ function formatDateTime(value?: string | null) {
     month: "short",
     year: "numeric"
   });
-}
-
-function parseScoreBreakdown(value: string | undefined, displayedScore: number) {
-  const parts = String(value || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const parsed = parts.map((part) => {
-    const match = part.match(/\(([-+]\d+)\)/);
-    const points = match ? Number(match[1]) : 0;
-    const label = part.replace(/\s*\([-+]\d+\)\s*/g, "").replace(/\s+-\s+/g, " - ");
-    return {
-      label: sentenceCase(label),
-      points: Number.isFinite(points) ? points : 0
-    };
-  });
-
-  const total = parsed.reduce((sum, item) => sum + item.points, 0);
-  if (parsed.length && total !== displayedScore) {
-    parsed.push({
-      label: "Score Adjustment",
-      points: displayedScore - total
-    });
-  }
-
-  return parsed.length ? parsed : [{ label: "No Scoring Inputs Available", points: displayedScore }];
 }

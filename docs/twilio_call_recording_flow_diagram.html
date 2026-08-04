@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Twilio Call Recording Flow</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f4f7fb;
+        color: #0f172a;
+        font-family: Arial, sans-serif;
+      }
+      header {
+        align-items: center;
+        background: #0b2f29;
+        color: white;
+        display: flex;
+        gap: 16px;
+        justify-content: space-between;
+        padding: 18px 28px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0;
+      }
+      a {
+        background: #118475;
+        border-radius: 8px;
+        color: white;
+        font-weight: 700;
+        padding: 10px 14px;
+        text-decoration: none;
+      }
+      main {
+        padding: 24px;
+      }
+      .diagram {
+        background: white;
+        border: 1px solid #d8e1ec;
+        border-radius: 12px;
+        box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+        overflow: auto;
+        padding: 20px;
+      }
+      pre {
+        background: #0f172a;
+        border-radius: 12px;
+        color: #e2e8f0;
+        overflow: auto;
+        padding: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Twilio Lead Calling & Recording Flow</h1>
+      <a download href="./twilio_call_recording_flow_diagram.mmd">Download Mermaid Diagram</a>
+    </header>
+    <main>
+      <div class="diagram">
+        <pre><code>flowchart TD
+    A["Agent opens Lead Detail"] --> B["System checks call eligibility"]
+    B --> C{"Lead allowed to call?"}
+    C -->|No| D["Disable Call Lead button and show reason"]
+    C -->|Yes| E["Agent clicks Call Lead"]
+
+    E --> F["Popup opens with lead name, masked phone, agent, editable script"]
+    F --> G["Agent reviews or edits script"]
+    G --> H["Agent clicks Start Call"]
+
+    H --> I["Backend creates call_log row with status queued"]
+    I --> J["Backend calls Twilio Calls API with recording enabled"]
+
+    J --> K["Twilio calls lead number"]
+    K --> L["Twilio requests backend TwiML URL"]
+    L --> M["Backend returns TwiML with Say prompt"]
+    M --> N["Twilio speaks approved script to lead"]
+
+    N --> O["Twilio records call audio"]
+    O --> P["Twilio sends call status callback"]
+    O --> Q["Twilio sends recording callback"]
+
+    P --> R["Backend updates call status and duration"]
+    Q --> S["Backend saves recording SID, URL, status, and duration"]
+
+    R --> T["Lead Detail Call History updates"]
+    S --> T
+    T --> U["Agent sees call status and recording available"]</code></pre>
+      </div>
+    </main>
+  </body>
+</html>

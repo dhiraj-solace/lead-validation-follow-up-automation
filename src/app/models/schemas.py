@@ -71,6 +71,8 @@ class LeadResponse(BaseModel):
     email_draft_body: Optional[str] = ""
     email_sent_status: Optional[str] = "not_sent"
     email_sent_at: Optional[str] = None
+    call_consent: int = 0
+    do_not_call: int = 0
     duplicate_of: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -81,6 +83,7 @@ class UploadLeadsResponse(BaseModel):
     created: int
     merged_duplicates: int
     auto_drafted: int = 0
+    auto_sent: int = 0
     valid: int
     invalid: int
     duplicate: int
@@ -159,6 +162,14 @@ class LearningReviewRequest(BaseModel):
 class LearningActiveRequest(BaseModel):
     is_active: bool
     admin_note: Optional[str] = ""
+
+
+class CallScriptRequest(BaseModel):
+    script: str
+
+
+class AppSettingsRequest(BaseModel):
+    auto_email_send_enabled: bool
 
 
 class EmailDraftResponse(BaseModel):

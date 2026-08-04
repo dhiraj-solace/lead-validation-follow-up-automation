@@ -175,7 +175,14 @@ export default function LearningPage() {
         description="Manage gold examples, error examples, and AI generation logs used by future email writing."
       />
 
-      <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", xl: "repeat(5, 1fr)" }, mb: 2 }}>
+      <Box
+        sx={{
+          display: "grid",
+          gap: 1.5,
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(5, 1fr)" },
+          mb: 2
+        }}
+      >
         {statCards.map((card) => (
           <MetricCard key={card.label} {...card} />
         ))}
@@ -205,7 +212,7 @@ export default function LearningPage() {
           </Tabs>
           {loading ? <LinearProgress /> : null}
           <Box sx={{ overflowX: "auto" }}>
-            <Table sx={{ minWidth: 1180 }}>
+            <Table size="small" sx={{ minWidth: 1180 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Date</TableCell>

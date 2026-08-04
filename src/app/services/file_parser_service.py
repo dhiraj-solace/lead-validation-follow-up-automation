@@ -17,6 +17,11 @@ REQUIRED_LEAD_COLUMNS = [
     "message",
 ]
 
+OPTIONAL_LEAD_COLUMNS = [
+    "call_consent",
+    "do_not_call",
+]
+
 
 class FileParserService:
     @staticmethod
@@ -40,7 +45,7 @@ class FileParserService:
         ]
         FileParserService._validate_columns(normalized_rows)
         return [
-            {key: str(row.get(key, "") or "").strip() for key in REQUIRED_LEAD_COLUMNS}
+            {key: str(row.get(key, "") or "").strip() for key in [*REQUIRED_LEAD_COLUMNS, *OPTIONAL_LEAD_COLUMNS]}
             for row in normalized_rows
         ]
 

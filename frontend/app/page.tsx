@@ -49,24 +49,24 @@ export default async function DashboardPage() {
             Upload Leads
           </Button>
         }
-        description="Monitor validation quality, scoring mix, and active outreach from one workspace."
+        description="Track lead volume, priority mix, validation quality, and follow-up activity."
         eyebrow="Dashboard"
-        title="Lead pipeline health"
+        title="Lead Pipeline"
       />
 
       <Box
         sx={{
           display: "grid",
-          gap: 2.25,
-          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", xl: "repeat(4, minmax(0, 1fr))" },
-          mb: 2.5
+          gap: 1.5,
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" },
+          mb: 2
         }}
       >
         {[
-          { label: "Total leads", value: dashboard.total, hint: "All imported records" },
-          { label: "Hot leads", value: dashboard.hot, hint: "Ready for immediate action" },
-          { label: "Warm leads", value: dashboard.warm, hint: "Good nurture candidates" },
-          { label: "Active follow-ups", value: dashboard.active_followups, hint: "Automation queue" }
+          { label: "Total Leads", value: dashboard.total, hint: "Imported records" },
+          { label: "Hot Leads", value: dashboard.hot, hint: "Ready for agent action" },
+          { label: "Warm Leads", value: dashboard.warm, hint: "In nurture queue" },
+          { label: "Pending Follow-Ups", value: dashboard.active_followups, hint: "Active automation" }
         ].map(({ label, value, hint }) => (
           <MetricCard hint={hint} key={label} label={label} value={value || 0} />
         ))}
@@ -75,17 +75,17 @@ export default async function DashboardPage() {
       <PanelCard
         action={
           <Button component={Link} href="/leads" size="small" variant="outlined">
-            View all
+            View All
           </Button>
         }
-        description="Latest imported records and their routing status."
-        title="Recent leads"
+        description="Latest imported leads with score, category, and owner."
+        title="Recent Leads"
       >
         {leads.length ? (
           <TableContainer
             sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflowX: "auto" }}
           >
-            <Table sx={{ minWidth: 820 }}>
+            <Table size="small" sx={{ minWidth: 820 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Name</TableCell>
@@ -102,7 +102,7 @@ export default async function DashboardPage() {
                       <Stack spacing={0.35}>
                         <Link href={`/leads/${lead.id}`}>
                           <Typography color="text.primary" component="span" sx={{ fontWeight: 800 }}>
-                            {lead.name}
+                            {formatDisplayName(lead.name)}
                           </Typography>
                         </Link>
                         <Typography color="text.secondary" variant="body2">
@@ -111,8 +111,8 @@ export default async function DashboardPage() {
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      <Typography>
-                        {lead.configuration} {lead.property_type}
+                      <Typography sx={{ fontWeight: 750 }}>
+                        {formatDisplayName(`${lead.configuration || ""} ${lead.property_type || ""}`) || "Property Requirement"}
                       </Typography>
                       <Typography color="text.secondary" variant="body2">
                         {lead.location_preference || "Any location"}
@@ -134,4 +134,16 @@ export default async function DashboardPage() {
       </PanelCard>
     </>
   );
+}
+
+function formatDisplayName(value?: string) {
+  const clean = String(value || "").replace(/[_-]+/g, " ").trim();
+  if (!clean) {
+    return "";
+  }
+  return clean
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }

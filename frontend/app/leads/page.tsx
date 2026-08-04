@@ -50,7 +50,7 @@ export default async function LeadsPage() {
         title="All imported leads"
       />
 
-      <Grid container spacing={2} sx={{ mb: 2.5 }}>
+      <Grid container spacing={1.5} sx={{ mb: 2 }}>
         <Grid item xs={12} sm={6} lg={3}>
           <LeadStatCard
             icon={<PeopleAltOutlinedIcon />}
@@ -114,9 +114,9 @@ export default async function LeadsPage() {
                 borderRadius: 2,
                 display: { xs: "none", md: "flex" },
                 justifyContent: "space-between",
-                mb: 2,
-                px: 2,
-                py: 1.5
+                mb: 1.5,
+                px: 1.5,
+                py: 1
               }}
             >
               <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
@@ -151,7 +151,7 @@ export default async function LeadsPage() {
                 WebkitOverflowScrolling: "touch"
               }}
             >
-              <Table sx={{ minWidth: 1180, tableLayout: "fixed" }}>
+              <Table size="small" sx={{ minWidth: 1180, tableLayout: "fixed" }}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ width: 220 }}>Lead</TableCell>
@@ -319,7 +319,7 @@ function LeadStatCard({
 
   return (
     <Card sx={{ height: "100%" }}>
-      <Stack spacing={1.5} sx={{ p: 2.25 }}>
+      <Stack spacing={1.1} sx={{ p: 1.45 }}>
         <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between" }}>
           <Box
             sx={{
@@ -328,9 +328,9 @@ function LeadStatCard({
               borderRadius: 2,
               color: colors[accent].color,
               display: "flex",
-              height: 42,
+              height: 34,
               justifyContent: "center",
-              width: 42
+              width: 34
             }}
           >
             {icon}
@@ -340,8 +340,8 @@ function LeadStatCard({
           </Typography>
         </Stack>
         <Box>
-          <Typography sx={{ fontSize: 34, fontWeight: 950, lineHeight: 1 }}>{value}</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.75 }} variant="body2">
+          <Typography sx={{ fontSize: 24, fontWeight: 950, lineHeight: 1 }}>{value}</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.45 }} variant="body2">
             {helper}
           </Typography>
         </Box>
@@ -352,7 +352,7 @@ function LeadStatCard({
             sx={{
               bgcolor: "#eef2f7",
               borderRadius: 99,
-              height: 7,
+              height: 5,
               "& .MuiLinearProgress-bar": { bgcolor: colors[accent].color, borderRadius: 99 }
             }}
           />

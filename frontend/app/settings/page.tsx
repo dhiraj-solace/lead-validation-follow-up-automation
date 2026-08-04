@@ -1,9 +1,13 @@
-import { API_BASE_URL } from "@/lib/api";
+"use client";
+
+import { useEffect, useState } from "react";
+import { API_BASE_URL, apiGet, apiPatch } from "@/lib/api";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import CloudSyncOutlinedIcon from "@mui/icons-material/CloudSyncOutlined";
 import DataObjectOutlinedIcon from "@mui/icons-material/DataObjectOutlined";
 import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
-import { Box, Stack, Typography } from "@mui/material";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import { Alert, Box, CircularProgress, FormControlLabel, Stack, Switch, Typography } from "@mui/material";
 import { PageHeader, PanelCard } from "../ui";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -50,6 +54,52 @@ function InlineCode({ children }: { children: React.ReactNode }) {
 }
 
 export default function SettingsPage() {
+  const [autoEmailSendEnabled, setAutoEmailSendEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadSettings() {
+      setLoading(true);
+      try {
+        const data = await apiGet<{ auto_email_send_enabled: boolean }>("/settings");
+        setAutoEmailSendEnabled(Boolean(data.auto_email_send_enabled));
+        setError("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load automation settings.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSettings();
+  }, []);
+
+  async function toggleAutoEmailSend(nextValue: boolean) {
+    const warning = nextValue
+      ? "Auto Email Send will automatically send generated emails to valid Hot leads after upload. Only enable this when SMTP and templates are approved. Continue?"
+      : "Auto Email Send will be turned off. Future uploads will generate drafts only and will not send automatically. Continue?";
+    if (!window.confirm(warning)) {
+      return;
+    }
+
+    setSaving(true);
+    setNotice("");
+    setError("");
+    try {
+      const data = await apiPatch<{ auto_email_send_enabled: boolean }>("/settings", {
+        auto_email_send_enabled: nextValue
+      });
+      setAutoEmailSendEnabled(Boolean(data.auto_email_send_enabled));
+      setNotice(nextValue ? "Auto Email Send is enabled." : "Auto Email Send is disabled.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update automation setting.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -59,6 +109,57 @@ export default function SettingsPage() {
       />
 
       <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" } }}>
+        <PanelCard
+          description="Control whether qualified uploaded leads are emailed automatically after AI draft generation."
+          icon={<WarningAmberOutlinedIcon color="warning" />}
+          title="Auto Email Send"
+        >
+          <Stack spacing={1.5}>
+            {error ? <Alert severity="error">{error}</Alert> : null}
+            {notice ? <Alert severity="success">{notice}</Alert> : null}
+            <Box
+              sx={{
+                alignItems: "center",
+                bgcolor: "#f8fafc",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 1.5,
+                p: 1.5
+              }}
+            >
+              <Box>
+                <Typography sx={{ fontWeight: 900 }}>
+                  {autoEmailSendEnabled ? "Automatic sending is on" : "Automatic sending is off"}
+                </Typography>
+                <Typography color="text.secondary" variant="body2">
+                  When on, only valid Hot leads with generated drafts can be sent automatically during upload.
+                </Typography>
+              </Box>
+              {loading ? (
+                <CircularProgress size={24} />
+              ) : (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={autoEmailSendEnabled}
+                      disabled={saving}
+                      onChange={(event) => toggleAutoEmailSend(event.target.checked)}
+                    />
+                  }
+                  label=""
+                  sx={{ m: 0 }}
+                />
+              )}
+            </Box>
+            <Alert severity="warning" sx={{ py: 0.75 }}>
+              Keep this off unless SMTP, templates, and AI review rules are approved for live outreach.
+            </Alert>
+          </Stack>
+        </PanelCard>
+
         <PanelCard
           description="Next.js sends lead workflow requests to this backend endpoint."
           icon={<CloudSyncOutlinedIcon color="primary" />}

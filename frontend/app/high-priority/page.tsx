@@ -42,7 +42,7 @@ export default async function HighPriorityPage() {
               WebkitOverflowScrolling: "touch"
             }}
           >
-            <Table sx={{ minWidth: 980, tableLayout: "fixed" }}>
+            <Table size="small" sx={{ minWidth: 980, tableLayout: "fixed" }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ width: 250 }}>Lead</TableCell>

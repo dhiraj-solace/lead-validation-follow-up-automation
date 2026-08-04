@@ -29,21 +29,21 @@ export function PageHeader({
   return (
     <Stack
       direction={{ xs: "column", sm: "row" }}
-      spacing={2}
-      sx={{ alignItems: { xs: "stretch", sm: "flex-start" }, justifyContent: "space-between", mb: 3 }}
+      spacing={1.5}
+      sx={{ alignItems: { xs: "stretch", sm: "flex-start" }, justifyContent: "space-between", mb: 2.25 }}
     >
       <Box>
         <Typography
           color="primary.dark"
-          sx={{ fontSize: 12, fontWeight: 900, lineHeight: 1.2, textTransform: "uppercase" }}
+          sx={{ fontSize: 11, fontWeight: 900, lineHeight: 1.2, textTransform: "uppercase" }}
         >
           {eyebrow}
         </Typography>
-        <Typography component="h1" variant="h1" sx={{ mt: 1 }}>
+        <Typography component="h1" variant="h1" sx={{ mt: 0.65 }}>
           {title}
         </Typography>
         {description ? (
-          <Typography color="text.secondary" sx={{ maxWidth: 760, mt: 1 }}>
+          <Typography color="text.secondary" sx={{ fontSize: 14, maxWidth: 760, mt: 0.65 }}>
             {description}
           </Typography>
         ) : null}
@@ -70,17 +70,17 @@ export function PanelCard({
 }) {
   return (
     <Card sx={sx}>
-      <CardContent sx={{ p: { xs: 2, sm: 2.5 }, "&:last-child": { pb: { xs: 2, sm: 2.5 } } }}>
+      <CardContent sx={{ p: { xs: 1.5, sm: 1.75 }, "&:last-child": { pb: { xs: 1.5, sm: 1.75 } } }}>
         {title || description || icon || action ? (
-          <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start", justifyContent: "space-between", mb: 2 }}>
-            <Box>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "flex-start", justifyContent: "space-between", mb: 1.35 }}>
+            <Box sx={{ minWidth: 0 }}>
               {title ? (
                 <Typography component="h2" variant="h2">
                   {title}
                 </Typography>
               ) : null}
               {description ? (
-                <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                <Typography color="text.secondary" sx={{ fontSize: 13.5, mt: 0.35 }}>
                   {description}
                 </Typography>
               ) : null}
@@ -97,16 +97,16 @@ export function PanelCard({
 export function MetricCard({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
     <Card sx={{ overflow: "hidden", position: "relative" }}>
-      <Box sx={{ bgcolor: "primary.main", height: 4 }} />
-      <CardContent sx={{ p: 2.25, "&:last-child": { pb: 2.25 } }}>
-        <Typography color="text.primary" sx={{ fontSize: 32, fontWeight: 900, lineHeight: 1.1 }}>
+      <Box sx={{ bgcolor: "primary.main", height: 3 }} />
+      <CardContent sx={{ p: 1.45, "&:last-child": { pb: 1.45 } }}>
+        <Typography color="text.primary" sx={{ fontSize: 24, fontWeight: 900, lineHeight: 1.05 }}>
           {value}
         </Typography>
-        <Typography color="text.secondary" sx={{ fontSize: 13, fontWeight: 800, mt: 1 }}>
+        <Typography color="text.secondary" sx={{ fontSize: 12.5, fontWeight: 850, mt: 0.6 }}>
           {label}
         </Typography>
         {hint ? (
-          <Typography color="text.secondary" sx={{ fontSize: 12, mt: 1 }}>
+          <Typography color="text.secondary" sx={{ fontSize: 11.5, mt: 0.45 }}>
             {hint}
           </Typography>
         ) : null}
@@ -126,8 +126,8 @@ export function EmptyState({ title, description }: { title: string; description:
         borderColor: "divider",
         borderRadius: 2,
         color: "text.secondary",
-        minHeight: 148,
-        p: 3,
+        minHeight: 112,
+        p: 2.2,
         justifyContent: "center",
         textAlign: "center"
       }}

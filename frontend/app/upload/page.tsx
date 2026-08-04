@@ -27,6 +27,7 @@ type UploadResult = {
   created: number;
   merged_duplicates: number;
   auto_drafted: number;
+  auto_sent: number;
   hot: number;
   warm: number;
   cold: number;
@@ -154,7 +155,7 @@ export default function UploadPage() {
         title="Import fixed-format lead file"
       />
 
-      <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: "1fr" }}>
+      <Box sx={{ display: "grid", gap: 1.75, gridTemplateColumns: "1fr" }}>
         <PanelCard
           icon={<FileUploadOutlinedIcon color="primary" />}
           description="CSV and XLSX files are supported."
@@ -222,16 +223,17 @@ export default function UploadPage() {
             <Box
               sx={{
                 display: "grid",
-                gap: 2,
-                gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", xl: "repeat(4, minmax(0, 1fr))" },
-                mt: 2.25
+                gap: 1.5,
+                gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(5, minmax(0, 1fr))" },
+                mt: 1.75
               }}
             >
               {[
                 { label: "Rows", value: result.total_rows },
                 { label: "Created", value: result.created },
                 { label: "Duplicates", value: result.merged_duplicates },
-                { label: "Draft Ready", value: result.auto_drafted }
+                { label: "Draft Ready", value: result.auto_drafted },
+                { label: "Auto Sent", value: result.auto_sent }
               ].map((item) => (
                 <MetricCard key={item.label} label={item.label} value={item.value} />
               ))}
@@ -245,12 +247,12 @@ export default function UploadPage() {
                 borderColor: "divider",
                 borderRadius: 2,
                 maxWidth: "100%",
-                mt: 2.25,
+                mt: 1.75,
                 overflowX: "auto",
                 WebkitOverflowScrolling: "touch"
               }}
             >
-              <Table sx={{ minWidth: 1040, tableLayout: "fixed" }}>
+              <Table size="small" sx={{ minWidth: 1040, tableLayout: "fixed" }}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ width: 190 }}>Name</TableCell>

@@ -7,6 +7,7 @@ import { EmptyState, PanelCard } from "../../ui";
 
 type Message = {
   id: number;
+  channel?: string;
   subject: string;
   body: string;
   status: string;
@@ -61,6 +62,7 @@ export default function ConversationHistory({ messages }: { messages: Message[] 
                       {message.subject || toTitleCase(message.direction)}
                     </Typography>
                     <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+                      <Chip label={toTitleCase(message.channel || "Email")} size="small" variant="outlined" />
                       <Chip label={toTitleCase(message.status)} size="small" sx={{ fontWeight: 800 }} />
                       <Chip label={formatDateTime(message.sent_at)} size="small" variant="outlined" />
                     </Stack>

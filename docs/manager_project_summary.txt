@@ -1,0 +1,43 @@
+Lead Validation and Follow-Up Automation
+
+This project is a real estate lead management system that helps sales teams process uploaded leads, validate contact details, score lead quality, generate outreach drafts, and manage follow-up activity from one dashboard.
+
+Core Workflow
+
+1. The user uploads a fixed-format CSV or Excel file containing lead details.
+2. The system validates required fields, email format/status, and phone status.
+3. Duplicate leads are detected using email and phone number.
+4. Valid leads are scored based on source, budget, timeline, location, requirement, and contact validation.
+5. Leads are categorized as Hot, Warm, or Cold.
+6. Qualified leads can be assigned to agents based on territory and property type.
+7. The system generates AI-assisted email drafts using lead details, old templates, and approved learning examples.
+8. The sales user can review, edit, approve, reject, save, and send the email draft.
+9. Follow-up status, conversation history, learning feedback, and call history are tracked.
+
+Main Features
+
+- CSV and Excel lead upload
+- Required field validation
+- Email and phone validation
+- Duplicate lead detection and duplicate resolution
+- Lead scoring and Hot/Warm/Cold categorization
+- Agent assignment support
+- AI email draft generation using existing templates and learning history
+- Human review for approving or rejecting AI-generated drafts
+- AI learning admin page for managing gold examples, error examples, and generation logs
+- Manual Twilio voice call support for validated and qualified leads
+- Call eligibility checks, call cooldown, Twilio text-to-speech script, and call history
+- Dashboard for lead pipeline, scoring, and follow-up visibility
+
+Safety and Control
+
+- Invalid, duplicate, cold, unqualified, opted-out, and do-not-call leads are blocked from calling.
+- Calls are manual only and cannot be triggered in bulk.
+- Lead phone numbers are never editable in the call popup.
+- Twilio and AI API keys stay on the backend and are not exposed in frontend code.
+- AI-generated emails are reviewable and editable before sending.
+- Admin can remove learning examples from future AI use without deleting the log.
+
+Business Value
+
+The system reduces manual lead checking, helps sales teams prioritize high-quality leads, creates consistent outreach, and keeps a clear audit trail for validation, scoring, email drafts, AI learning, and manual sales calls.

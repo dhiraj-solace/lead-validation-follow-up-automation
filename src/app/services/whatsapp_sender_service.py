@@ -48,12 +48,30 @@ class WhatsAppSenderService:
                 "provider_message_id": message_id,
             }
         except httpx.HTTPStatusError as exc:
+            if settings.DEMO_MODE:
+                return {
+                    "success": True,
+                    "message": "Demo mode: WhatsApp message captured and marked sent because Meta API returned an error.",
+                    "to_phone": phone,
+                    "provider_message_id": f"DEMO-WA-{phone[-4:]}",
+                    "provider_error": f"{exc.response.status_code} {exc.response.text}",
+                    "demo": True,
+                }
             return {
                 "success": False,
                 "message": f"WhatsApp send failed: {exc.response.status_code} {exc.response.text}",
                 "to_phone": phone,
             }
         except Exception as exc:
+            if settings.DEMO_MODE:
+                return {
+                    "success": True,
+                    "message": "Demo mode: WhatsApp message captured and marked sent because Meta API is unavailable.",
+                    "to_phone": phone,
+                    "provider_message_id": f"DEMO-WA-{phone[-4:]}",
+                    "provider_error": str(exc),
+                    "demo": True,
+                }
             return {"success": False, "message": f"WhatsApp send failed: {exc}", "to_phone": phone}
 
     @staticmethod

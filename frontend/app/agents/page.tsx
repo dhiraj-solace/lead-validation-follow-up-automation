@@ -172,7 +172,7 @@ export default function AgentsPage() {
               WebkitOverflowScrolling: "touch"
             }}
           >
-            <Table sx={{ minWidth: 980, tableLayout: "fixed" }}>
+            <Table size="small" sx={{ minWidth: 980, tableLayout: "fixed" }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ width: 190 }}>Name</TableCell>
@@ -224,7 +224,7 @@ export default function AgentsPage() {
         <Box component="form" onSubmit={submit}>
           <DialogTitle sx={{ pb: 1 }}>
             <Stack spacing={0.5}>
-              <Typography component="span" sx={{ fontSize: 24, fontWeight: 900 }}>
+              <Typography component="span" sx={{ fontSize: 20, fontWeight: 900 }}>
                 Add Agent
               </Typography>
               <Typography color="text.secondary" variant="body2">
@@ -233,8 +233,8 @@ export default function AgentsPage() {
             </Stack>
           </DialogTitle>
           <DialogContent dividers>
-            <Stack spacing={2.25} sx={{ pt: 0.5 }}>
-              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
+            <Stack spacing={1.5} sx={{ pt: 0.5 }}>
+              <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
                 <TextField label="Name" required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
                 <TextField
                   label="Email"

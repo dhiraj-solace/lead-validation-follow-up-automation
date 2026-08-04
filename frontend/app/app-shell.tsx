@@ -163,7 +163,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         sx={{
           minWidth: 0,
           ml: { md: "288px" },
-          p: { xs: 2, sm: 3, lg: 4 }
+          p: { xs: 1.5, sm: 2.25, lg: 3 }
         }}
       >
         {children}

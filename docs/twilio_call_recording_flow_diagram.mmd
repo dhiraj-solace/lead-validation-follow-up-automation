@@ -1,0 +1,28 @@
+flowchart TD
+    A["Agent opens Lead Detail"] --> B["System checks call eligibility"]
+    B --> C{"Lead allowed to call?"}
+    C -->|No| D["Disable Call Lead button and show reason"]
+    C -->|Yes| E["Agent clicks Call Lead"]
+
+    E --> F["Popup opens with lead name, masked phone, agent, editable script"]
+    F --> G["Agent reviews or edits script"]
+    G --> H["Agent clicks Start Call"]
+
+    H --> I["Backend creates call_log row with status queued"]
+    I --> J["Backend calls Twilio Calls API with recording enabled"]
+
+    J --> K["Twilio calls lead number"]
+    K --> L["Twilio requests backend TwiML URL"]
+    L --> M["Backend returns TwiML with Say prompt"]
+    M --> N["Twilio speaks approved script to lead"]
+
+    N --> O["Twilio records call audio"]
+    O --> P["Twilio sends call status callback"]
+    O --> Q["Twilio sends recording callback"]
+
+    P --> R["Backend updates call status and duration"]
+    Q --> S["Backend saves recording SID, URL, status, and duration"]
+
+    R --> T["Lead Detail Call History updates"]
+    S --> T
+    T --> U["Agent sees call status and recording available"]

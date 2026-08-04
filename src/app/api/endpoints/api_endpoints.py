@@ -115,12 +115,12 @@ async def upload_leads(
         merged_duplicates=merged,
         auto_drafted=auto_drafted,
         auto_sent=auto_sent,
-        valid=sum(1 for lead in refreshed_leads if lead["validation_status"] == "Valid"),
-        invalid=sum(1 for lead in refreshed_leads if lead["validation_status"] == "Invalid"),
-        duplicate=sum(1 for lead in refreshed_leads if lead["validation_status"] == "Duplicate"),
-        hot=sum(1 for lead in refreshed_leads if lead["score_band"] == "Hot"),
-        warm=sum(1 for lead in refreshed_leads if lead["score_band"] == "Warm"),
-        cold=sum(1 for lead in refreshed_leads if lead["score_band"] == "Cold"),
+        valid=sum(1 for lead in refreshed_leads if lead.get("validation_status") == "Valid"),
+        invalid=sum(1 for lead in refreshed_leads if lead.get("validation_status") == "Invalid"),
+        duplicate=sum(1 for lead in refreshed_leads if lead.get("validation_status") == "Duplicate"),
+        hot=sum(1 for lead in refreshed_leads if lead.get("score_band") == "Hot"),
+        warm=sum(1 for lead in refreshed_leads if lead.get("score_band") == "Warm"),
+        cold=sum(1 for lead in refreshed_leads if lead.get("score_band") == "Cold"),
         leads=refreshed_leads,
     )
     logger.info(

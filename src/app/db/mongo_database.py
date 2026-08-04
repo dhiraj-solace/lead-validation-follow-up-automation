@@ -38,6 +38,19 @@ def _clean_many(rows: Iterable[dict]) -> list[dict]:
     return [_clean(row) or {} for row in rows]
 
 
+def _lead_defaults(row: dict) -> dict:
+    row.setdefault("email_status", "pending")
+    row.setdefault("phone_status", "pending")
+    row.setdefault("score", 0)
+    row.setdefault("score_band", "Cold")
+    row.setdefault("score_breakdown", "")
+    row.setdefault("validation_status", row.get("status") or "Pending")
+    row.setdefault("validation_remarks", "")
+    row.setdefault("status", row.get("validation_status") or "Pending")
+    row.setdefault("automation_status", "not_started")
+    return row
+
+
 def _next_id(collection: str) -> int:
     row = _db().counters.find_one_and_update(
         {"_id": collection},
@@ -280,7 +293,7 @@ def _fetch_app_settings(q: str, params: tuple[Any, ...]) -> list[dict]:
 
 def _fetch_leads(q: str, params: tuple[Any, ...]) -> list[dict]:
     db = _db()
-    rows = _clean_many(db.leads.find({}))
+    rows = [_lead_defaults(row) for row in _clean_many(db.leads.find({}))]
 
     if "count(*) as total" in q:
         return [_dashboard(rows)]
@@ -484,7 +497,7 @@ def _lead_insert_payload(q: str, params: tuple[Any, ...]) -> dict:
             "line_type", "score", "score_band", "score_breakdown", "validation_status", "validation_remarks",
             "status", "assigned_agent_id", "automation_status", "next_followup_at", "call_consent", "do_not_call",
         ]
-    elif len(params) == 18:
+    elif len(params) == 17:
         fields = [
             "name", "email", "phone", "source", "property_type", "configuration", "location_preference",
             "budget", "timeline", "message", "score", "score_band", "score_breakdown", "validation_remarks",

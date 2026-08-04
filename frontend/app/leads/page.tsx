@@ -25,6 +25,7 @@ import {
   Typography
 } from "@mui/material";
 import { DraftStatusChip, EmailStatusChip, EmptyState, PageHeader, PanelCard, ScoreChip, ValidationChip } from "../ui";
+import DeleteLeadButton from "./delete-lead-button";
 
 export default async function LeadsPage() {
   const leads = await apiGet<Lead[]>("").catch(() => []);
@@ -160,7 +161,7 @@ export default async function LeadsPage() {
                     <TableCell sx={{ width: 300 }}>Validation</TableCell>
                     <TableCell sx={{ width: 120 }}>Score</TableCell>
                     <TableCell sx={{ width: 140 }}>Email</TableCell>
-                    <TableCell align="right" sx={{ width: 130 }}>Action</TableCell>
+                    <TableCell align="right" sx={{ width: 220 }}>Action</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -230,15 +231,18 @@ export default async function LeadsPage() {
                         </Stack>
                       </TableCell>
                       <TableCell align="right">
-                        <Button
-                          component={Link}
-                          endIcon={<ArrowForwardOutlinedIcon />}
-                          href={`/leads/${lead.id}`}
-                          size="small"
-                          variant="text"
-                        >
-                          Review
-                        </Button>
+                        <Stack direction="row" spacing={0.5} sx={{ justifyContent: "flex-end" }}>
+                          <Button
+                            component={Link}
+                            endIcon={<ArrowForwardOutlinedIcon />}
+                            href={`/leads/${lead.id}`}
+                            size="small"
+                            variant="text"
+                          >
+                            Review
+                          </Button>
+                          <DeleteLeadButton leadId={lead.id} leadName={lead.name} />
+                        </Stack>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -185,7 +185,19 @@ def execute(query: str, params: Iterable[Any] = ()) -> int:
     if q.startswith("update email_generation_history"):
         return _update_email_history(q, params)
     if q.startswith("delete from leads"):
-        _db().leads.delete_one({"id": int(params[0])})
+        if "duplicate_of = ?" in q:
+            _db().leads.delete_many({"duplicate_of": int(params[0])})
+        else:
+            _db().leads.delete_one({"id": int(params[0])})
+        return 0
+    if q.startswith("delete from message_logs"):
+        _db().message_logs.delete_many({"lead_id": int(params[0])})
+        return 0
+    if q.startswith("delete from call_logs"):
+        _db().call_logs.delete_many({"lead_id": int(params[0])})
+        return 0
+    if q.startswith("delete from email_generation_history"):
+        _db().email_generation_history.delete_many({"lead_id": int(params[0])})
         return 0
 
     raise NotImplementedError(f"Mongo execute not implemented: {query.strip()[:160]}")

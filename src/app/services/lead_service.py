@@ -231,6 +231,19 @@ class LeadService:
         return {"success": True, "message": f"Skipped duplicate lead #{duplicate_id}.", "lead_id": duplicate_id}
 
     @staticmethod
+    def delete_lead(lead_id: int) -> dict:
+        lead = LeadService.get_lead(lead_id)
+        if not lead:
+            return {"success": False, "message": "Lead not found."}
+
+        execute("DELETE FROM message_logs WHERE lead_id = ?", (lead_id,))
+        execute("DELETE FROM call_logs WHERE lead_id = ?", (lead_id,))
+        execute("DELETE FROM email_generation_history WHERE lead_id = ?", (lead_id,))
+        execute("DELETE FROM leads WHERE duplicate_of = ?", (lead_id,))
+        execute("DELETE FROM leads WHERE id = ?", (lead_id,))
+        return {"success": True, "message": f"Deleted lead #{lead_id}.", "lead_id": lead_id}
+
+    @staticmethod
     def find_duplicate(email: str, phone: str) -> dict | None:
         if email:
             lead = fetch_one(

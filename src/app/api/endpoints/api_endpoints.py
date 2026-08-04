@@ -183,6 +183,14 @@ async def skip_duplicate(lead_id: int):
     return result
 
 
+@router.delete("/{lead_id}")
+async def delete_lead(lead_id: int):
+    result = LeadService.delete_lead(lead_id)
+    if not result["success"]:
+        raise HTTPException(status_code=404, detail=result["message"])
+    return result
+
+
 @router.post("/{lead_id}/generate-email", response_model=EmailDraftResponse)
 async def generate_email(lead_id: int):
     result = AIEmailService.generate_draft(lead_id)

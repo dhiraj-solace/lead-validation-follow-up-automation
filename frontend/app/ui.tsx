@@ -151,7 +151,7 @@ export function ValidationChip({ status }: { status?: "Valid" | "Invalid" | "Dup
   return <Chip label={safeStatus} size="small" sx={{ ...validationStyles[safeStatus], fontWeight: 850 }} />;
 }
 
-export function EmailStatusChip({ status }: { status?: string }) {
+export function EmailStatusChip({ status }: { status?: string | null }) {
   const sent = status === "sent";
   return (
     <Chip

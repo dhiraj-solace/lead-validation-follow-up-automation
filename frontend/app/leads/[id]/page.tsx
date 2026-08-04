@@ -11,6 +11,9 @@ import ConversationHistory from "./conversation-history";
 import EmailDraftPanel from "./email-draft-panel";
 import LeadActions from "./lead-actions";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type Message = {
   id: number;
   channel?: string;

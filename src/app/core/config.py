@@ -29,6 +29,8 @@ class Settings:
     CALL_COOLDOWN_HOURS: int = int(env_value("CALL_COOLDOWN_HOURS", "24") or "24")
     EMAIL_VALIDATOR_API_KEY: str = env_value("EMAIL_VALIDATOR_API_KEY") or env_value("email_validator_api_key")
     DEMO_MODE: bool = os.getenv("DEMO_MODE", "true").lower() == "true"
+    MONGODB_URI: str = env_value("MONGODB_URI")
+    MONGODB_DB_NAME: str = env_value("MONGODB_DB_NAME", "lead_validation_automation")
     OPENROUTER_API_KEY: str = env_value("OPENROUTER_API_KEY")
     OPENROUTER_BASE_URL: str = env_value("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     OPENROUTER_MODEL: str = env_value("OPENROUTER_MODEL", "~openai/gpt-latest")

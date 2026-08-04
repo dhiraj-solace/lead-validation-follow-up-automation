@@ -2,6 +2,7 @@ fastapi
 httpx
 openpyxl
 pydantic
+pymongo
 python-dotenv
 python-multipart
 twilio

@@ -339,3 +339,13 @@ def _seed_defaults(conn: sqlite3.Connection) -> None:
                 ),
             ],
         )
+
+
+if settings.MONGODB_URI:
+    from src.app.db.mongo_database import (  # noqa: E402,F401
+        execute,
+        execute_many,
+        fetch_all,
+        fetch_one,
+        init_db,
+    )

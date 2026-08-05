@@ -133,6 +133,9 @@ CREATE TABLE IF NOT EXISTS call_logs (
     agent_id INTEGER,
     call_sid TEXT DEFAULT '',
     script TEXT DEFAULT '',
+    call_mode TEXT DEFAULT 'script',
+    questionnaire_step INTEGER DEFAULT 0,
+    questionnaire_answers TEXT DEFAULT '[]',
     status TEXT DEFAULT 'queued',
     duration INTEGER DEFAULT 0,
     recording_sid TEXT DEFAULT '',
@@ -269,6 +272,9 @@ def _migrate_existing_schema(conn: sqlite3.Connection) -> None:
 
     call_columns = {row["name"] for row in conn.execute("PRAGMA table_info(call_logs)").fetchall()}
     call_additions = {
+        "call_mode": "TEXT DEFAULT 'script'",
+        "questionnaire_step": "INTEGER DEFAULT 0",
+        "questionnaire_answers": "TEXT DEFAULT '[]'",
         "recording_sid": "TEXT DEFAULT ''",
         "recording_url": "TEXT DEFAULT ''",
         "recording_status": "TEXT DEFAULT ''",
@@ -284,6 +290,13 @@ def _migrate_existing_schema(conn: sqlite3.Connection) -> None:
         INSERT OR IGNORE INTO app_settings (key, value)
         VALUES ('auto_email_send_enabled', 'false')
         """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO app_settings (key, value)
+        VALUES ('call_provider', ?)
+        """,
+        (settings.CALL_PROVIDER if settings.CALL_PROVIDER in {"twilio", "telnyx"} else "twilio",),
     )
 
 

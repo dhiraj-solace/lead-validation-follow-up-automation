@@ -166,6 +166,7 @@ class LearningActiveRequest(BaseModel):
 
 class CallScriptRequest(BaseModel):
     script: str
+    call_mode: str = "script"
 
 
 class CallPreferencesRequest(BaseModel):
@@ -174,7 +175,8 @@ class CallPreferencesRequest(BaseModel):
 
 
 class AppSettingsRequest(BaseModel):
-    auto_email_send_enabled: bool
+    auto_email_send_enabled: Optional[bool] = None
+    call_provider: Optional[str] = None
 
 
 class EmailDraftResponse(BaseModel):

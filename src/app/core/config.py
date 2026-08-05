@@ -22,9 +22,14 @@ class Settings:
     API_V1_STR: str = "/api/v1"
     LOG_LEVEL: str = env_value("LOG_LEVEL", "INFO").upper()
 
+    CALL_PROVIDER: str = env_value("CALL_PROVIDER", "twilio").lower()
     TWILIO_ACCOUNT_SID: str = env_value("TWILIO_ACCOUNT_SID")
     TWILIO_AUTH_TOKEN: str = env_value("TWILIO_AUTH_TOKEN")
     TWILIO_PHONE_NUMBER: str = env_value("TWILIO_PHONE_NUMBER")
+    TELNYX_API_KEY: str = env_value("TELNYX_API_KEY")
+    TELNYX_PHONE_NUMBER: str = env_value("TELNYX_PHONE_NUMBER") or env_value("TELNYX_FROM_NUMBER")
+    TELNYX_CONNECTION_ID: str = env_value("TELNYX_CONNECTION_ID")
+    TELNYX_API_BASE_URL: str = env_value("TELNYX_API_BASE_URL", "https://api.telnyx.com/v2")
     PUBLIC_BASE_URL: str = env_value("PUBLIC_BASE_URL", "http://127.0.0.1:8000")
     CALL_MIN_SCORE: int = int(env_value("CALL_MIN_SCORE", "50") or "50")
     CALL_COOLDOWN_HOURS: int = int(env_value("CALL_COOLDOWN_HOURS", "24") or "24")

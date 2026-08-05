@@ -8,6 +8,8 @@ export type CallLog = {
   call_sid?: string;
   status: string;
   script: string;
+  call_mode?: string;
+  questionnaire_answers?: string | Array<Record<string, unknown>>;
   duration?: number;
   recording_sid?: string;
   recording_url?: string;
@@ -41,6 +43,7 @@ export default function CallHistory({ calls }: { calls: CallLog[] }) {
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap", justifyContent: { sm: "flex-end" } }}>
+                  <Chip label={call.call_mode === "questionnaire" ? "Voice Questions" : "Script Call"} size="small" variant="outlined" />
                   <Chip label={call.call_sid ? `SID ${call.call_sid.slice(-8)}` : "No SID"} size="small" variant="outlined" />
                   <Chip
                     label={recordingLabel(call)}
@@ -56,6 +59,18 @@ export default function CallHistory({ calls }: { calls: CallLog[] }) {
               <Typography color="text.secondary" sx={{ mt: 0.75 }} variant="body2">
                 {preview(call.error_message || call.script)}
               </Typography>
+              {questionnaireAnswers(call).length ? (
+                <Stack spacing={0.7} sx={{ mt: 1 }}>
+                  {questionnaireAnswers(call).map((answer, index) => (
+                    <Box key={`${call.id}-${answer.key || index}`} sx={{ bgcolor: "white", borderRadius: 1.5, p: 1 }}>
+                      <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
+                        {String(answer.question || `Question ${index + 1}`)}
+                      </Typography>
+                      <Typography sx={{ fontWeight: 800 }}>{String(answer.answer || "-")}</Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              ) : null}
               {call.recording_url ? (
                 <Stack
                   direction={{ xs: "column", sm: "row" }}
@@ -117,6 +132,19 @@ function formatDate(value?: string) {
 function preview(value?: string) {
   const clean = String(value || "").replace(/\s+/g, " ").trim();
   return clean.length > 180 ? `${clean.slice(0, 180)}...` : clean || "-";
+}
+
+function questionnaireAnswers(call: CallLog) {
+  const raw = call.questionnaire_answers;
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+  try {
+    const parsed = JSON.parse(String(raw || "[]"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function recordingLabel(call: CallLog) {

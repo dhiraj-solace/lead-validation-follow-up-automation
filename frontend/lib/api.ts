@@ -15,6 +15,8 @@ export type LeadCall = {
   call_sid?: string;
   status: string;
   script: string;
+  call_mode?: string;
+  questionnaire_answers?: string | Array<Record<string, unknown>>;
   duration?: number;
   recording_sid?: string;
   recording_url?: string;

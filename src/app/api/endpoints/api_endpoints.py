@@ -59,7 +59,10 @@ async def app_settings():
 
 @router.patch("/settings")
 async def update_app_settings(payload: AppSettingsRequest):
-    return AppSettingsService.update_settings(payload.auto_email_send_enabled)
+    return AppSettingsService.update_settings(
+        auto_email_send_enabled=payload.auto_email_send_enabled,
+        call_provider=payload.call_provider,
+    )
 
 
 @router.post("/upload-leads", response_model=UploadLeadsResponse)
@@ -292,7 +295,7 @@ async def update_call_preferences(lead_id: int, payload: CallPreferencesRequest)
 
 @router.post("/{lead_id:int}/calls")
 async def start_voice_call(lead_id: int, payload: CallScriptRequest):
-    return VoiceCallService.start_call(lead_id, payload.script)
+    return VoiceCallService.start_call(lead_id, payload.script, payload.call_mode)
 
 
 @router.get("/{lead_id:int}/calls")
@@ -306,6 +309,15 @@ async def lead_call_history(lead_id: int):
 @router.get("/calls/{call_id:int}/twiml")
 async def call_twiml(call_id: int):
     return VoiceCallService.twiml_response(call_id)
+
+
+@router.post("/calls/{call_id:int}/question")
+async def call_question_answer(
+    call_id: int,
+    SpeechResult: str = Form(default=""),
+    Confidence: str = Form(default=""),
+):
+    return VoiceCallService.questionnaire_answer_response(call_id, SpeechResult, Confidence)
 
 
 @router.post("/calls/{call_id:int}/status")
@@ -335,6 +347,11 @@ async def call_recording_callback(
         recording_duration=RecordingDuration,
         call_sid=CallSid,
     )
+
+
+@router.post("/calls/{call_id:int}/telnyx-events")
+async def telnyx_call_event(call_id: int, payload: dict):
+    return VoiceCallService.process_telnyx_event(call_id, payload)
 
 
 @router.post("/{lead_id:int}/email-feedback", response_model=EmailDraftResponse)

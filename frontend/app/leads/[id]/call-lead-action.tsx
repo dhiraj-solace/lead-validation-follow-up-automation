@@ -56,6 +56,7 @@ export default function CallLeadAction({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [script, setScript] = useState("");
+  const [callMode, setCallMode] = useState<"script" | "questionnaire">("questionnaire");
   const [loading, setLoading] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -130,7 +131,7 @@ export default function CallLeadAction({
     setError("");
     setStatus("");
     try {
-      const response = await apiPost<StartCallResponse>(`/${leadId}/calls`, { script });
+      const response = await apiPost<StartCallResponse>(`/${leadId}/calls`, { script, call_mode: callMode });
       setStatus(`${response.message} Status: ${response.status}.`);
       router.refresh();
     } catch (err) {
@@ -151,7 +152,7 @@ export default function CallLeadAction({
           <Stack spacing={0.35}>
             <Typography sx={{ fontSize: 20, fontWeight: 900 }}>Call Lead</Typography>
             <Typography color="text.secondary" variant="body2">
-              Review the text-to-speech script before starting the Twilio voice call.
+              Choose a normal script call or a voice-question call that listens to spoken real-estate answers.
             </Typography>
           </Stack>
         </DialogTitle>
@@ -164,8 +165,30 @@ export default function CallLeadAction({
               <InfoBlock label="Call Rule" value={`Minimum score ${eligibility.minimum_score}`} />
             </Box>
 
+            <Box sx={{ bgcolor: "#f8fafc", border: "1px solid", borderColor: "divider", borderRadius: 2.2, p: 1 }}>
+              <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, mb: 1, textTransform: "uppercase" }}>
+                Call Mode
+              </Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <Button
+                  onClick={() => setCallMode("questionnaire")}
+                  variant={callMode === "questionnaire" ? "contained" : "outlined"}
+                >
+                  Voice Questions
+                </Button>
+                <Button onClick={() => setCallMode("script")} variant={callMode === "script" ? "contained" : "outlined"}>
+                  Normal Script
+                </Button>
+              </Stack>
+              <Typography color="text.secondary" sx={{ mt: 1 }} variant="body2">
+                {callMode === "questionnaire"
+                  ? "Bot asks short real-estate questions and stores spoken answers. No keypad required."
+                  : "Bot speaks the script once and records call status/history."}
+              </Typography>
+            </Box>
+
             <TextField
-              label="Call script"
+              label={callMode === "questionnaire" ? "Opening message before questions" : "Call script"}
               maxRows={8}
               minRows={5}
               multiline
@@ -182,10 +205,15 @@ export default function CallLeadAction({
             Cancel
           </Button>
           <Button disabled={Boolean(loading)} onClick={generateScript} startIcon={<AutoAwesomeOutlinedIcon />} variant="outlined">
-            {loading === "script" ? "Generating..." : "Generate AI Call Script"}
+            {loading === "script" ? "Generating..." : "Generate Opening Script"}
           </Button>
-          <Button disabled={Boolean(loading) || !script.trim()} onClick={startCall} startIcon={<LocalPhoneOutlinedIcon />} variant="contained">
-            {loading === "call" ? "Starting..." : "Start Call"}
+          <Button
+            disabled={Boolean(loading) || (callMode === "script" && !script.trim())}
+            onClick={startCall}
+            startIcon={<LocalPhoneOutlinedIcon />}
+            variant="contained"
+          >
+            {loading === "call" ? "Starting..." : callMode === "questionnaire" ? "Start Voice Questions" : "Start Call"}
           </Button>
         </DialogActions>
       </Dialog>

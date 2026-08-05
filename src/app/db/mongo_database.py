@@ -188,10 +188,14 @@ def execute(query: str, params: Iterable[Any] = ()) -> int:
         return _insert("email_generation_history", dict(zip(fields, params)))
 
     if q.startswith("insert into app_settings"):
-        value = params[0] if params else "false"
+        if len(params) >= 2:
+            key, value = params[:2]
+        else:
+            key = "auto_email_send_enabled"
+            value = params[0] if params else "false"
         _db().app_settings.update_one(
-            {"key": "auto_email_send_enabled"},
-            {"$set": {"key": "auto_email_send_enabled", "value": value, "updated_at": _now()}},
+            {"key": key},
+            {"$set": {"key": key, "value": value, "updated_at": _now()}},
             upsert=True,
         )
         return 0
@@ -286,8 +290,11 @@ def _fetch_templates(q: str, params: tuple[Any, ...]) -> list[dict]:
 
 
 def _fetch_app_settings(q: str, params: tuple[Any, ...]) -> list[dict]:
-    if "where key = 'auto_email_send_enabled'" in q:
-        return _clean_many(_db().app_settings.find({"key": "auto_email_send_enabled"}).limit(1))
+    key_match = re.search(r"where key = '([^']+)'", q)
+    if key_match:
+        return _clean_many(_db().app_settings.find({"key": key_match.group(1)}).limit(1))
+    if "where key = ?" in q and params:
+        return _clean_many(_db().app_settings.find({"key": params[0]}).limit(1))
     return _clean_many(_db().app_settings.find({}))
 
 
@@ -534,7 +541,30 @@ def _message_insert_payload(q: str, params: tuple[Any, ...]) -> dict:
 def _call_insert_payload(q: str, params: tuple[Any, ...]) -> dict:
     if len(params) == 3:
         lead_id, agent_id, script = params
-        return {"lead_id": lead_id, "agent_id": agent_id, "script": script, "status": "queued", "duration": 0, "called_at": _now()}
+        return {
+            "lead_id": lead_id,
+            "agent_id": agent_id,
+            "script": script,
+            "call_mode": "script",
+            "questionnaire_step": 0,
+            "questionnaire_answers": "[]",
+            "status": "queued",
+            "duration": 0,
+            "called_at": _now(),
+        }
+    if len(params) == 4:
+        lead_id, agent_id, script, call_mode = params
+        return {
+            "lead_id": lead_id,
+            "agent_id": agent_id,
+            "script": script,
+            "call_mode": call_mode,
+            "questionnaire_step": 0,
+            "questionnaire_answers": "[]",
+            "status": "queued",
+            "duration": 0,
+            "called_at": _now(),
+        }
     fields = [
         "lead_id", "agent_id", "call_sid", "script", "status", "duration", "recording_sid", "recording_url",
         "recording_status", "recording_duration", "recording_available_at", "error_message", "called_at", "updated_at",
@@ -574,6 +604,18 @@ def _update_leads(q: str, params: tuple[Any, ...]) -> int:
     elif "set call_consent = ?" in q and "do_not_call = ?" in q and len(params) == 3:
         call_consent, do_not_call, lead_id = params
         db.leads.update_one({"id": int(lead_id)}, {"$set": {"call_consent": call_consent, "do_not_call": do_not_call, "updated_at": _now()}})
+    elif "set score = ?" in q and "score_band = ?" in q and "validation_remarks = ?" in q:
+        score, score_band, validation_remarks, status, lead_id = params
+        db.leads.update_one(
+            {"id": int(lead_id)},
+            {"$set": {
+                "score": int(score or 0),
+                "score_band": score_band,
+                "validation_remarks": validation_remarks,
+                "status": status,
+                "updated_at": _now(),
+            }},
+        )
     elif "set email_status = ?" in q:
         fields = ["email_status", "phone_status", "score", "score_band", "score_breakdown", "validation_status", "validation_remarks", "status", "assigned_agent_id", "automation_status", "call_consent", "do_not_call"]
         data = dict(zip(fields, params[:-1]))
@@ -589,8 +631,14 @@ def _update_call_logs(q: str, params: tuple[Any, ...]) -> int:
     call_id = int(params[-1])
     if "set status = 'failed'" in q:
         data = {"status": "failed", "error_message": params[0], "updated_at": _now()}
+    elif "set questionnaire_step = ?" in q:
+        data = {"questionnaire_step": int(params[0] or 0), "questionnaire_answers": params[1], "updated_at": _now()}
     elif "set call_sid = ?" in q:
         data = {"call_sid": params[0], "status": "queued", "recording_status": "requested", "updated_at": _now()}
+    elif "set status = ?" in q and "duration" not in q:
+        data = {"status": params[0], "updated_at": _now()}
+        if params[1]:
+            data["call_sid"] = params[1]
     elif "duration = 0" in q:
         data = {"call_sid": params[0], "status": "queued", "duration": 0, "recording_sid": params[1], "recording_url": params[2], "recording_status": "completed", "recording_duration": 42, "recording_available_at": _now(), "error_message": params[3], "updated_at": _now()}
     elif "duration = ?" in q and "recording_sid" not in q:
@@ -636,6 +684,8 @@ def _seed_defaults() -> None:
     db = _db()
     if db.app_settings.count_documents({"key": "auto_email_send_enabled"}) == 0:
         db.app_settings.insert_one({"key": "auto_email_send_enabled", "value": "false", "updated_at": _now()})
+    if db.app_settings.count_documents({"key": "call_provider"}) == 0:
+        db.app_settings.insert_one({"key": "call_provider", "value": settings.CALL_PROVIDER if settings.CALL_PROVIDER in {"twilio", "telnyx"} else "twilio", "updated_at": _now()})
 
     if db.agents.count_documents({}) == 0:
         for agent in [

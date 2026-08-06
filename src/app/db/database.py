@@ -143,6 +143,15 @@ CREATE TABLE IF NOT EXISTS call_logs (
     recording_status TEXT DEFAULT '',
     recording_duration INTEGER DEFAULT 0,
     recording_available_at TEXT,
+    transcript_text TEXT DEFAULT '',
+    transcript_status TEXT DEFAULT '',
+    transcript_summary TEXT DEFAULT '',
+    transcript_analysis TEXT DEFAULT '{}',
+    transcript_next_action TEXT DEFAULT '',
+    transcript_error TEXT DEFAULT '',
+    transcript_model TEXT DEFAULT '',
+    transcript_cost REAL DEFAULT 0,
+    transcribed_at TEXT,
     error_message TEXT DEFAULT '',
     called_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -280,6 +289,15 @@ def _migrate_existing_schema(conn: sqlite3.Connection) -> None:
         "recording_status": "TEXT DEFAULT ''",
         "recording_duration": "INTEGER DEFAULT 0",
         "recording_available_at": "TEXT",
+        "transcript_text": "TEXT DEFAULT ''",
+        "transcript_status": "TEXT DEFAULT ''",
+        "transcript_summary": "TEXT DEFAULT ''",
+        "transcript_analysis": "TEXT DEFAULT '{}'",
+        "transcript_next_action": "TEXT DEFAULT ''",
+        "transcript_error": "TEXT DEFAULT ''",
+        "transcript_model": "TEXT DEFAULT ''",
+        "transcript_cost": "REAL DEFAULT 0",
+        "transcribed_at": "TEXT",
     }
     for column, definition in call_additions.items():
         if column not in call_columns:
@@ -291,14 +309,6 @@ def _migrate_existing_schema(conn: sqlite3.Connection) -> None:
         VALUES ('auto_email_send_enabled', 'false')
         """
     )
-    conn.execute(
-        """
-        INSERT OR IGNORE INTO app_settings (key, value)
-        VALUES ('call_provider', ?)
-        """,
-        (settings.CALL_PROVIDER if settings.CALL_PROVIDER in {"twilio", "telnyx"} else "twilio",),
-    )
-
 
 def _seed_defaults(conn: sqlite3.Connection) -> None:
     agent_count = conn.execute("SELECT COUNT(*) AS count FROM agents").fetchone()["count"]

@@ -73,6 +73,15 @@ class LeadResponse(BaseModel):
     email_sent_at: Optional[str] = None
     call_consent: int = 0
     do_not_call: int = 0
+    transcript_text: Optional[str] = ""
+    transcript_status: Optional[str] = ""
+    transcript_summary: Optional[str] = ""
+    transcript_analysis: Optional[str] = "{}"
+    transcript_next_action: Optional[str] = ""
+    transcript_error: Optional[str] = ""
+    transcript_model: Optional[str] = ""
+    transcript_cost: Optional[float] = 0
+    transcribed_at: Optional[str] = None
     duplicate_of: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -145,6 +154,12 @@ class EmailDraftRequest(BaseModel):
     body: str
 
 
+class EmailGenerateRequest(BaseModel):
+    subject: Optional[str] = ""
+    body: Optional[str] = ""
+    feedback: Optional[str] = ""
+
+
 class EmailFeedbackRequest(BaseModel):
     action: str
     subject: Optional[str] = None
@@ -176,7 +191,6 @@ class CallPreferencesRequest(BaseModel):
 
 class AppSettingsRequest(BaseModel):
     auto_email_send_enabled: Optional[bool] = None
-    call_provider: Optional[str] = None
 
 
 class EmailDraftResponse(BaseModel):

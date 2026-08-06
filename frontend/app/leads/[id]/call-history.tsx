@@ -1,6 +1,12 @@
+"use client";
+
 import LocalPhoneOutlinedIcon from "@mui/icons-material/LocalPhoneOutlined";
 import PlayCircleOutlineOutlinedIcon from "@mui/icons-material/PlayCircleOutlineOutlined";
-import { Box, Button, Chip, Stack, Typography } from "@mui/material";
+import TextSnippetOutlinedIcon from "@mui/icons-material/TextSnippetOutlined";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { apiPost } from "@/lib/api";
+import { Alert, Box, Button, Chip, LinearProgress, Stack, Typography } from "@mui/material";
 import { EmptyState, PanelCard } from "../../ui";
 
 export type CallLog = {
@@ -16,14 +22,41 @@ export type CallLog = {
   recording_status?: string;
   recording_duration?: number;
   recording_available_at?: string;
+  transcript_text?: string;
+  transcript_status?: string;
+  transcript_summary?: string;
+  transcript_analysis?: string | Record<string, unknown>;
+  transcript_next_action?: string;
+  transcript_error?: string;
+  transcript_model?: string;
+  transcript_cost?: number;
+  transcribed_at?: string;
   called_at?: string;
   agent_name?: string;
   error_message?: string;
 };
 
 export default function CallHistory({ calls }: { calls: CallLog[] }) {
+  const router = useRouter();
+  const [loadingCallId, setLoadingCallId] = useState<number | null>(null);
+  const [error, setError] = useState("");
+
+  async function transcribe(callId: number) {
+    setLoadingCallId(callId);
+    setError("");
+    try {
+      await apiPost<CallLog>(`/calls/${callId}/transcribe`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not transcribe recording");
+    } finally {
+      setLoadingCallId(null);
+    }
+  }
+
   return (
     <PanelCard icon={<LocalPhoneOutlinedIcon color="primary" />} title="Call History">
+      {error ? <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert> : null}
       {calls.length ? (
         <Stack spacing={1}>
           {calls.map((call) => (
@@ -54,6 +87,9 @@ export default function CallHistory({ calls }: { calls: CallLog[] }) {
                       fontWeight: 850
                     }}
                   />
+                  {call.transcript_status ? (
+                    <Chip label={`Transcript ${formatStatus(call.transcript_status)}`} size="small" variant="outlined" />
+                  ) : null}
                 </Stack>
               </Stack>
               <Typography color="text.secondary" sx={{ mt: 0.75 }} variant="body2">
@@ -88,11 +124,84 @@ export default function CallHistory({ calls }: { calls: CallLog[] }) {
                   >
                     Open Recording
                   </Button>
+                  <Button
+                    disabled={loadingCallId === call.id || call.transcript_status === "processing"}
+                    onClick={() => transcribe(call.id)}
+                    size="small"
+                    startIcon={<TextSnippetOutlinedIcon />}
+                    variant="outlined"
+                  >
+                    {loadingCallId === call.id || call.transcript_status === "processing"
+                      ? "Transcribing..."
+                      : call.transcript_text
+                        ? "Re-transcribe"
+                        : "Transcribe Recording"}
+                  </Button>
                   <Typography color="text.secondary" variant="caption">
                     Recording: {call.recording_duration || call.duration || 0}s
                     {call.recording_available_at ? ` / Ready ${formatDate(call.recording_available_at)}` : ""}
                   </Typography>
                 </Stack>
+              ) : null}
+              {loadingCallId === call.id ? <LinearProgress sx={{ mt: 1 }} /> : null}
+              {call.transcript_error ? (
+                <Alert severity="warning" sx={{ mt: 1 }}>
+                  {call.transcript_error}
+                </Alert>
+              ) : null}
+              {call.transcript_summary || call.transcript_text || call.transcript_next_action ? (
+                <Box sx={{ bgcolor: "white", borderRadius: 1.5, mt: 1, p: 1 }}>
+                  {call.transcript_next_action ? (
+                    <Alert severity="info" sx={{ mb: 1 }}>
+                      <Typography sx={{ fontWeight: 900 }} variant="body2">
+                        Suggested next action
+                      </Typography>
+                      <Typography variant="body2">{call.transcript_next_action}</Typography>
+                    </Alert>
+                  ) : null}
+                  {Object.keys(transcriptAnalysis(call)).length ? (
+                    <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, mb: 1 }}>
+                      <AnalysisBlock label="Interest" value={field(transcriptAnalysis(call), "interest")} />
+                      <AnalysisBlock label="Visit Intent" value={field(transcriptAnalysis(call), "visit_intent")} />
+                      <AnalysisBlock label="Score" value={`${field(transcriptAnalysis(call), "score")} / ${field(transcriptAnalysis(call), "score_band")}`} />
+                      <AnalysisBlock label="Budget" value={field(transcriptAnalysis(call), "budget")} />
+                      <AnalysisBlock label="Location" value={field(transcriptAnalysis(call), "location")} />
+                      <AnalysisBlock label="Timeline" value={field(transcriptAnalysis(call), "timeline")} />
+                    </Box>
+                  ) : null}
+                  {objections(transcriptAnalysis(call)).length ? (
+                    <Box sx={{ bgcolor: "#fff7ed", borderRadius: 1.5, mb: 1, p: 1 }}>
+                      <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
+                        Objections
+                      </Typography>
+                      <Typography sx={{ fontWeight: 800 }}>{objections(transcriptAnalysis(call)).join("; ")}</Typography>
+                    </Box>
+                  ) : null}
+                  {call.transcript_summary ? (
+                    <>
+                      <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
+                        AI Summary
+                      </Typography>
+                      <Typography sx={{ fontWeight: 800 }}>{call.transcript_summary}</Typography>
+                    </>
+                  ) : null}
+                  {call.transcript_text ? (
+                    <>
+                      <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, mt: 1, textTransform: "uppercase" }}>
+                        Transcript
+                      </Typography>
+                      <Typography color="text.secondary" variant="body2">
+                        {call.transcript_text}
+                      </Typography>
+                    </>
+                  ) : null}
+                  {call.transcribed_at ? (
+                    <Typography color="text.secondary" sx={{ display: "block", mt: 0.75 }} variant="caption">
+                      Transcribed {formatDate(call.transcribed_at)}
+                      {call.transcript_model ? ` / ${call.transcript_model}` : ""}
+                    </Typography>
+                  ) : null}
+                </Box>
               ) : null}
             </Box>
           ))}
@@ -145,6 +254,40 @@ function questionnaireAnswers(call: CallLog) {
   } catch {
     return [];
   }
+}
+
+function transcriptAnalysis(call: CallLog) {
+  const raw = call.transcript_analysis;
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  try {
+    const parsed = JSON.parse(String(raw || "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function field(analysis: Record<string, unknown>, key: string) {
+  const value = analysis[key];
+  return value === undefined || value === null || value === "" ? "-" : String(value);
+}
+
+function objections(analysis: Record<string, unknown>) {
+  const value = analysis.objections;
+  return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
+}
+
+function AnalysisBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <Box sx={{ bgcolor: "#f8fafc", borderRadius: 1.5, p: 1 }}>
+      <Typography color="text.secondary" sx={{ fontSize: 10, fontWeight: 850, textTransform: "uppercase" }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontWeight: 850, overflowWrap: "anywhere" }}>{value}</Typography>
+    </Box>
+  );
 }
 
 function recordingLabel(call: CallLog) {

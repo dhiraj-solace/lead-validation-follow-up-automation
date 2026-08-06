@@ -2,9 +2,7 @@ import csv
 import io
 import logging
 import os
-
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
-
 from src.app.core.config import settings
 from src.app.db.database import execute
 from src.app.models.schemas import (
@@ -13,6 +11,7 @@ from src.app.models.schemas import (
     BatchEmailValidationResponse,
     BatchPhoneValidationResponse,
     CallPreferencesRequest,
+    EmailGenerateRequest,
     CallScriptRequest,
     EmailDraftRequest,
     EmailDraftResponse,
@@ -59,10 +58,7 @@ async def app_settings():
 
 @router.patch("/settings")
 async def update_app_settings(payload: AppSettingsRequest):
-    return AppSettingsService.update_settings(
-        auto_email_send_enabled=payload.auto_email_send_enabled,
-        call_provider=payload.call_provider,
-    )
+    return AppSettingsService.update_settings(auto_email_send_enabled=payload.auto_email_send_enabled)
 
 
 @router.post("/upload-leads", response_model=UploadLeadsResponse)
@@ -214,8 +210,13 @@ async def delete_lead(lead_id: int):
 
 
 @router.post("/{lead_id:int}/generate-email", response_model=EmailDraftResponse)
-async def generate_email(lead_id: int):
-    result = AIEmailService.generate_draft(lead_id)
+async def generate_email(lead_id: int, payload: EmailGenerateRequest | None = None):
+    result = AIEmailService.generate_draft(
+        lead_id,
+        reviewer_feedback=(payload.feedback if payload else "") or "",
+        rejected_subject=(payload.subject if payload else "") or "",
+        rejected_body=(payload.body if payload else "") or "",
+    )
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
     return result
@@ -349,9 +350,9 @@ async def call_recording_callback(
     )
 
 
-@router.post("/calls/{call_id:int}/telnyx-events")
-async def telnyx_call_event(call_id: int, payload: dict):
-    return VoiceCallService.process_telnyx_event(call_id, payload)
+@router.post("/calls/{call_id:int}/transcribe")
+async def transcribe_call_recording(call_id: int):
+    return VoiceCallService.transcribe_recording(call_id)
 
 
 @router.post("/{lead_id:int}/email-feedback", response_model=EmailDraftResponse)

@@ -1,10 +1,8 @@
 import logging
 import asyncio
-import httpx
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 from src.app.core.config import settings
-from src.app.services.app_settings_service import AppSettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -13,56 +11,12 @@ class TwilioLookupClient:
         self.account_sid = settings.TWILIO_ACCOUNT_SID
         self.auth_token = settings.TWILIO_AUTH_TOKEN
         self.client = Client(self.account_sid, self.auth_token) if self.account_sid and self.auth_token else None
-        self.telnyx_api_key = settings.TELNYX_API_KEY
     
     async def lookup_number(self, phone_number):
         return await asyncio.to_thread(self._lookup_number_sync, phone_number)
 
     def _lookup_number_sync(self, phone_number):
-        if AppSettingsService.call_provider() == "telnyx":
-            return self._lookup_number_telnyx(phone_number)
         return self._lookup_number_twilio(phone_number)
-
-    def _lookup_number_telnyx(self, phone_number):
-        if not self.telnyx_api_key:
-            if settings.DEMO_MODE:
-                return self._simple_lookup_number(phone_number, "demo_missing_telnyx_credentials")
-            return {
-                "Valid": False,
-                "Active": False,
-                "SMS_Capable": False,
-                "Line_Type": "Missing Credentials",
-                "Carrier": "Missing Credentials",
-            }
-
-        try:
-            response = httpx.get(
-                f"{settings.TELNYX_API_BASE_URL.rstrip('/')}/number_lookup/{phone_number}",
-                headers={"Authorization": f"Bearer {self.telnyx_api_key}", "Accept": "application/json"},
-                timeout=20.0,
-            )
-            response.raise_for_status()
-            data = response.json().get("data", {})
-            carrier = data.get("carrier") or {}
-            line_type = str(carrier.get("type") or data.get("line_type") or "Unknown")
-            carrier_name = str(carrier.get("name") or carrier.get("carrier_name") or "Unknown")
-            valid = bool(data.get("valid", True))
-            active = valid and carrier_name != "Unknown"
-            sms_capable = line_type.lower() in {"mobile", "voip", "wireless"} or active
-            return {
-                "Valid": valid,
-                "Active": active,
-                "SMS_Capable": sms_capable,
-                "Line_Type": line_type,
-                "Carrier": carrier_name,
-                "phone_number": data.get("phone_number") or phone_number,
-                "country_code": data.get("country_code", ""),
-            }
-        except Exception as exc:
-            logger.error("Telnyx lookup error: %s", exc)
-            if settings.DEMO_MODE:
-                return self._simple_lookup_number(phone_number, "demo_telnyx_error_fallback")
-            return {"Valid": False, "Active": False, "SMS_Capable": False, "Line_Type": "Error", "Carrier": "Error"}
 
     def _lookup_number_twilio(self, phone_number):
         if not self.client:

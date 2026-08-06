@@ -7,7 +7,7 @@ import CloudSyncOutlinedIcon from "@mui/icons-material/CloudSyncOutlined";
 import DataObjectOutlinedIcon from "@mui/icons-material/DataObjectOutlined";
 import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
-import { Alert, Box, Button, CircularProgress, FormControlLabel, Stack, Switch, Typography } from "@mui/material";
+import { Alert, Box, CircularProgress, FormControlLabel, Stack, Switch, Typography } from "@mui/material";
 import { PageHeader, PanelCard } from "../ui";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -55,12 +55,10 @@ function InlineCode({ children }: { children: React.ReactNode }) {
 
 export default function SettingsPage() {
   const [autoEmailSendEnabled, setAutoEmailSendEnabled] = useState(false);
-  const [callProvider, setCallProvider] = useState<"twilio" | "telnyx">("twilio");
-  const [callProviderCredentials, setCallProviderCredentials] = useState<{
+  const [twilioCredentials, setTwilioCredentials] = useState<{
     configured: boolean;
     message: string;
     missing: string[];
-    provider: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,17 +71,14 @@ export default function SettingsPage() {
       try {
         const data = await apiGet<{
           auto_email_send_enabled: boolean;
-          call_provider: "twilio" | "telnyx";
-          call_provider_credentials: {
+          twilio_credentials: {
             configured: boolean;
             message: string;
             missing: string[];
-            provider: string;
           };
         }>("/settings");
         setAutoEmailSendEnabled(Boolean(data.auto_email_send_enabled));
-        setCallProvider(data.call_provider || "twilio");
-        setCallProviderCredentials(data.call_provider_credentials || null);
+        setTwilioCredentials(data.twilio_credentials || null);
         setError("");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load automation settings.");
@@ -113,40 +108,6 @@ export default function SettingsPage() {
       setNotice(nextValue ? "Auto Email Send is enabled." : "Auto Email Send is disabled.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update automation setting.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function updateCallProvider(nextProvider: "twilio" | "telnyx") {
-    if (nextProvider === callProvider) {
-      return;
-    }
-    const confirmed = window.confirm(
-      `Switch voice and phone lookup provider to ${providerLabel(nextProvider)}? The server must have the required ${providerLabel(nextProvider)} environment credentials.`
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    setSaving(true);
-    setNotice("");
-    setError("");
-    try {
-      const data = await apiPatch<{
-        call_provider: "twilio" | "telnyx";
-        call_provider_credentials: {
-          configured: boolean;
-          message: string;
-          missing: string[];
-          provider: string;
-        };
-      }>("/settings", { call_provider: nextProvider });
-      setCallProvider(data.call_provider || nextProvider);
-      setCallProviderCredentials(data.call_provider_credentials || null);
-      setNotice(`Call provider switched to ${providerLabel(data.call_provider || nextProvider)}.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update call provider.");
     } finally {
       setSaving(false);
     }
@@ -235,46 +196,25 @@ export default function SettingsPage() {
         </PanelCard>
 
         <PanelCard
-          description="Choose which server-side provider handles phone lookup and outbound calls."
+          description="Twilio handles phone lookup, outbound calls, recordings, and voice-question calls."
           icon={<CloudSyncOutlinedIcon color="primary" />}
-          title="Call provider"
+          title="Twilio voice"
         >
           <Stack spacing={1.5}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              {(["twilio", "telnyx"] as const).map((provider) => (
-                <Button
-                  disabled={loading || saving}
-                  key={provider}
-                  onClick={() => updateCallProvider(provider)}
-                  variant={callProvider === provider ? "contained" : "outlined"}
-                >
-                  {providerLabel(provider)}
-                </Button>
-              ))}
-            </Stack>
-            <Alert severity={callProviderCredentials?.configured ? "success" : "warning"}>
-              {callProviderCredentials?.message || "Loading provider credential status..."}
+            <Alert severity={twilioCredentials?.configured ? "success" : "warning"}>
+              {twilioCredentials?.message || "Loading Twilio credential status..."}
             </Alert>
             <Stack sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
-              <DetailRow label="Selected" value={providerLabel(callProvider)} />
+              <DetailRow label="Provider" value="Twilio" />
               <DetailRow
                 label="Required env"
                 value={
-                  callProvider === "telnyx" ? (
-                    <>
-                      <InlineCode>TELNYX_API_KEY</InlineCode>{" "}
-                      <InlineCode>TELNYX_PHONE_NUMBER</InlineCode>{" "}
-                      <InlineCode>TELNYX_CONNECTION_ID</InlineCode>{" "}
-                      <InlineCode>PUBLIC_BASE_URL</InlineCode>
-                    </>
-                  ) : (
-                    <>
-                      <InlineCode>TWILIO_ACCOUNT_SID</InlineCode>{" "}
-                      <InlineCode>TWILIO_AUTH_TOKEN</InlineCode>{" "}
-                      <InlineCode>TWILIO_PHONE_NUMBER</InlineCode>{" "}
-                      <InlineCode>PUBLIC_BASE_URL</InlineCode>
-                    </>
-                  )
+                  <>
+                    <InlineCode>TWILIO_ACCOUNT_SID</InlineCode>{" "}
+                    <InlineCode>TWILIO_AUTH_TOKEN</InlineCode>{" "}
+                    <InlineCode>TWILIO_PHONE_NUMBER</InlineCode>{" "}
+                    <InlineCode>PUBLIC_BASE_URL</InlineCode>
+                  </>
                 }
               />
             </Stack>
@@ -319,7 +259,7 @@ message`}
         >
           <Stack sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
             <DetailRow label="Email" value="Format validation plus API deliverability when configured." />
-            <DetailRow label="Phone" value="Format validation plus selected provider lookup when configured." />
+            <DetailRow label="Phone" value="Format validation plus Twilio lookup when configured." />
             <DetailRow label="Fallback" value="Simple local validation keeps the upload flow usable." />
           </Stack>
         </PanelCard>
@@ -346,8 +286,4 @@ message`}
       </Box>
     </>
   );
-}
-
-function providerLabel(provider: string) {
-  return provider === "telnyx" ? "Telnyx" : "Twilio";
 }

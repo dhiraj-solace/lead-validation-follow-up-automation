@@ -62,7 +62,12 @@ DEMO_PROPERTY_INVENTORY = [
 
 class AIEmailService:
     @staticmethod
-    def generate_draft(lead_id: int) -> dict:
+    def generate_draft(
+        lead_id: int,
+        reviewer_feedback: str = "",
+        rejected_subject: str = "",
+        rejected_body: str = "",
+    ) -> dict:
         lead = LeadService.get_lead(lead_id)
         if not lead:
             return {"success": False, "message": "Lead not found."}
@@ -78,6 +83,13 @@ class AIEmailService:
         gold_examples = EmailLearningService.approved_patterns_for_lead(lead, limit=3)
         error_examples = EmailLearningService.error_examples_for_lead(lead, limit=3)
         retry_feedback: list[dict] = []
+        regeneration_feedback = AIEmailService._build_regeneration_feedback(
+            reviewer_feedback,
+            rejected_subject or lead.get("email_draft_subject", ""),
+            rejected_body or lead.get("email_draft_body", ""),
+        )
+        if regeneration_feedback:
+            retry_feedback.append(regeneration_feedback)
         attempts: list[dict] = []
 
         if settings.OPENROUTER_API_KEY:
@@ -92,6 +104,7 @@ class AIEmailService:
                     approved_patterns=gold_examples,
                     error_examples=error_examples,
                     retry_feedback=retry_feedback,
+                    force_variation=bool(regeneration_feedback),
                 )
                 if not ai_result:
                     break
@@ -172,7 +185,7 @@ class AIEmailService:
                     "It was saved as the best available draft, but should not be sent until fixed."
                 )
         else:
-            body = AIEmailService._rewrite_with_category_angle(base_body, lead, agent)
+            body = AIEmailService._rewrite_with_category_angle(base_body, lead, agent, reviewer_feedback)
             message = "Email draft generated with local demo writer."
             guardrail = EmailLearningService.run_guardrails(subject, body, lead)
             judge = EmailLearningService.judge_email(subject, body, lead, guardrail, lead.get("score_band", "General"))
@@ -377,7 +390,7 @@ class AIEmailService:
         }
 
     @staticmethod
-    def _rewrite_with_category_angle(base_body: str, lead: dict, agent: dict | None) -> str:
+    def _rewrite_with_category_angle(base_body: str, lead: dict, agent: dict | None, reviewer_feedback: str = "") -> str:
         category = lead.get("score_band", "Cold")
         location = lead.get("location_preference") or "your preferred location"
         requirement = " ".join(
@@ -411,7 +424,34 @@ class AIEmailService:
                 f"come up around {location}."
             )
 
+        if reviewer_feedback:
+            angle = (
+                f"\n\nBased on your requirement, I can share a cleaner shortlist with project details, pricing fit, "
+                f"and visit options instead of a generic follow-up."
+            )
+
         return f"{base_body.rstrip()}{inventory_line}{angle}\n\n{agent_name}"
+
+    @staticmethod
+    def _build_regeneration_feedback(reviewer_feedback: str, rejected_subject: str, rejected_body: str) -> dict:
+        feedback = " ".join(str(reviewer_feedback or "").split())
+        subject = str(rejected_subject or "").strip()
+        body = str(rejected_body or "").strip()
+        if not feedback and not subject and not body:
+            return {}
+        return {
+            "attempt": "human_regeneration",
+            "failed_subject": subject[:300],
+            "failed_body": body[:1600],
+            "guardrail_issues": [],
+            "judge_status": "human_rejected",
+            "judge_score": 0,
+            "judge_reason": feedback or "User requested a fresh version.",
+            "retry_instruction": (
+                "Generate a noticeably different email. Do not reuse the same opening, same property pitch, "
+                "same sentence order, or same CTA from failed_subject/failed_body. Follow the human feedback exactly."
+            ),
+        }
 
     @staticmethod
     def _generate_with_openrouter(
@@ -424,13 +464,14 @@ class AIEmailService:
         approved_patterns: list[dict] | None = None,
         error_examples: list[dict] | None = None,
         retry_feedback: list[dict] | None = None,
+        force_variation: bool = False,
     ) -> dict | None:
         if not settings.OPENROUTER_API_KEY:
             return None
 
         payload = {
             "model": settings.OPENROUTER_MODEL,
-            "temperature": 0.55,
+            "temperature": 0.85 if force_variation else 0.55,
             "max_tokens": 700,
             "messages": [
                 {
@@ -574,6 +615,8 @@ class AIEmailService:
                 "Reuse the structure and CTA style of approved patterns when relevant, but do not copy names or exact property details from another lead.",
                 "Avoid every issue listed in failed_error_examples_to_avoid and current_retry_feedback.",
                 "When retry feedback includes a failed draft, change the wording and fix the exact listed guardrail and judge issues.",
+                "If current_retry_feedback contains human_regeneration, the new email must be substantially different from failed_subject and failed_body.",
+                "Do not reuse the same first sentence, same paragraph order, or same final question from a human-rejected draft.",
                 "Do not include markdown.",
             ],
         }

@@ -23,6 +23,15 @@ export type LeadCall = {
   recording_status?: string;
   recording_duration?: number;
   recording_available_at?: string;
+  transcript_text?: string;
+  transcript_status?: string;
+  transcript_summary?: string;
+  transcript_analysis?: string | Record<string, unknown>;
+  transcript_next_action?: string;
+  transcript_error?: string;
+  transcript_model?: string;
+  transcript_cost?: number;
+  transcribed_at?: string;
   called_at?: string;
   agent_name?: string;
   error_message?: string;

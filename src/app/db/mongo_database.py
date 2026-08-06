@@ -605,7 +605,16 @@ def _update_leads(q: str, params: tuple[Any, ...]) -> int:
         call_consent, do_not_call, lead_id = params
         db.leads.update_one({"id": int(lead_id)}, {"$set": {"call_consent": call_consent, "do_not_call": do_not_call, "updated_at": _now()}})
     elif "set score = ?" in q and "score_band = ?" in q and "validation_remarks = ?" in q:
-        score, score_band, validation_remarks, status, lead_id = params
+        if len(params) == 8:
+            score, score_band, validation_remarks, status, automation_status, next_followup_at, do_not_call, lead_id = params
+            extra = {
+                "automation_status": automation_status,
+                "next_followup_at": next_followup_at,
+                "do_not_call": do_not_call,
+            }
+        else:
+            score, score_band, validation_remarks, status, lead_id = params
+            extra = {}
         db.leads.update_one(
             {"id": int(lead_id)},
             {"$set": {
@@ -614,6 +623,7 @@ def _update_leads(q: str, params: tuple[Any, ...]) -> int:
                 "validation_remarks": validation_remarks,
                 "status": status,
                 "updated_at": _now(),
+                **extra,
             }},
         )
     elif "set email_status = ?" in q:
@@ -633,6 +643,23 @@ def _update_call_logs(q: str, params: tuple[Any, ...]) -> int:
         data = {"status": "failed", "error_message": params[0], "updated_at": _now()}
     elif "set questionnaire_step = ?" in q:
         data = {"questionnaire_step": int(params[0] or 0), "questionnaire_answers": params[1], "updated_at": _now()}
+    elif "set transcript_text = ?" in q:
+        data = {
+            "transcript_text": params[0],
+            "transcript_status": params[1],
+            "transcript_summary": params[2],
+            "transcript_analysis": params[3],
+            "transcript_next_action": params[4],
+            "transcript_error": params[5],
+            "transcript_model": params[6],
+            "transcript_cost": float(params[7] or 0),
+            "transcribed_at": _now(),
+            "updated_at": _now(),
+        }
+    elif "set transcript_status = ?" in q and "transcript_error = ?" in q:
+        data = {"transcript_status": params[0], "transcript_error": params[1], "updated_at": _now()}
+    elif "set transcript_status = ?" in q:
+        data = {"transcript_status": params[0], "transcript_error": "", "updated_at": _now()}
     elif "set call_sid = ?" in q:
         data = {"call_sid": params[0], "status": "queued", "recording_status": "requested", "updated_at": _now()}
     elif "set status = ?" in q and "duration" not in q:
@@ -684,9 +711,6 @@ def _seed_defaults() -> None:
     db = _db()
     if db.app_settings.count_documents({"key": "auto_email_send_enabled"}) == 0:
         db.app_settings.insert_one({"key": "auto_email_send_enabled", "value": "false", "updated_at": _now()})
-    if db.app_settings.count_documents({"key": "call_provider"}) == 0:
-        db.app_settings.insert_one({"key": "call_provider", "value": settings.CALL_PROVIDER if settings.CALL_PROVIDER in {"twilio", "telnyx"} else "twilio", "updated_at": _now()})
-
     if db.agents.count_documents({}) == 0:
         for agent in [
             {"name": "Amit Sales", "email": "amit@example.com", "territory": "Wakad", "property_type": "Apartment", "active": 1},

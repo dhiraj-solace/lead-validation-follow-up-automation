@@ -51,7 +51,11 @@ export default function EmailDraftPanel({
     setStatus("");
     setHumanReviewAction("");
     try {
-      const draft = await apiPost<DraftResponse>(`/${leadId}/generate-email`);
+      const draft = await apiPost<DraftResponse>(`/${leadId}/generate-email`, {
+        subject,
+        body,
+        feedback: humanReviewReason.trim()
+      });
       setSubject(draft.subject || "");
       setBody(draft.body || "");
       setStatus(draft.message);
@@ -236,7 +240,7 @@ export default function EmailDraftPanel({
             </Stack>
             {!emailAlreadySent ? (
               <TextField
-                helperText="Required for rejection. Optional note for approval."
+                helperText="Used when regenerating. Required for rejection. Optional note for approval."
                 label="Human review reason"
                 minRows={2}
                 multiline

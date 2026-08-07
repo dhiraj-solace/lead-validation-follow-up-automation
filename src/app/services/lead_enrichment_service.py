@@ -95,7 +95,6 @@ class LeadEnrichmentService:
         company = LeadEnrichmentService.extract_company(data)
         title = LeadEnrichmentService.extract_title(data)
         location = LeadEnrichmentService.extract_location(data)
-        score_delta = LeadEnrichmentService.score_delta(confidence, email_match, phone_match, name_match, bool(profiles), bool(company))
         summary_parts = [f"PDL matched profile with confidence {confidence}/10"]
         if data.get("full_name"):
             summary_parts.append(f"name: {data.get('full_name')}")
@@ -105,11 +104,19 @@ class LeadEnrichmentService:
             summary_parts.append(f"title: {title}")
         if profiles:
             summary_parts.append("social profile found")
-        summary_parts.append(f"score +{score_delta}")
+        match_notes = []
+        if email_match:
+            match_notes.append("email matched")
+        if phone_match:
+            match_notes.append("phone matched")
+        if name_match:
+            match_notes.append("name matched")
+        if match_notes:
+            summary_parts.append(", ".join(match_notes))
         return {
             "status": "matched",
             "confidence": confidence,
-            "score_delta": score_delta,
+            "score_delta": 0,
             "summary": "; ".join(summary_parts),
             "data": payload,
             "full_name": str(data.get("full_name") or ""),
@@ -121,10 +128,7 @@ class LeadEnrichmentService:
 
     @staticmethod
     def save_result(lead: dict, result: dict) -> None:
-        current_score = int(lead.get("score") or 0)
-        score_delta = int(result.get("score_delta") or 0)
-        new_score = max(0, min(current_score + score_delta, 100))
-        score_band = "Hot" if new_score >= 80 else "Warm" if new_score >= 50 else "Cold"
+        score_delta = 0
         validation_remarks = LeadEnrichmentService.merge_remarks(lead.get("validation_remarks"), result.get("summary"))
         execute(
             """
@@ -141,12 +145,7 @@ class LeadEnrichmentService:
                 enrichment_location = ?,
                 enrichment_profiles = ?,
                 enriched_at = ?,
-                score = ?,
-                score_band = ?,
-                score_breakdown = ?,
                 validation_remarks = ?,
-                status = ?,
-                automation_status = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -163,34 +162,10 @@ class LeadEnrichmentService:
                 result.get("location", ""),
                 json.dumps(result.get("profiles") or []),
                 datetime.utcnow().isoformat(timespec="seconds"),
-                new_score,
-                score_band,
-                LeadEnrichmentService.merge_breakdown(lead.get("score_breakdown"), score_delta, result.get("status")),
                 validation_remarks,
-                score_band if lead.get("validation_status") == "Valid" else lead.get("status", score_band),
-                "active" if lead.get("validation_status") == "Valid" and score_band in {"Hot", "Warm"} else lead.get("automation_status", "not_started"),
                 lead["id"],
             ),
         )
-
-    @staticmethod
-    def score_delta(confidence: int, email_match: bool, phone_match: bool, name_match: bool, has_profile: bool, has_company: bool) -> int:
-        delta = 0
-        if confidence >= 8:
-            delta += 12
-        elif confidence >= 5:
-            delta += 6
-        if email_match:
-            delta += 8
-        if phone_match:
-            delta += 8
-        if name_match:
-            delta += 4
-        if has_profile:
-            delta += 5
-        if has_company:
-            delta += 3
-        return min(delta, 30)
 
     @staticmethod
     def email_matches(lead: dict, data: dict) -> bool:
@@ -229,11 +204,31 @@ class LeadEnrichmentService:
         for item in profiles if isinstance(profiles, list) else []:
             value = item.get("url") if isinstance(item, dict) else item
             if value:
-                urls.append(str(value))
+                urls.append(LeadEnrichmentService.normalize_profile_url(str(value)))
         linkedin = data.get("linkedin_url") or data.get("linkedin_username")
         if linkedin:
-            urls.insert(0, str(linkedin))
-        return list(dict.fromkeys(urls))[:8]
+            urls.insert(0, LeadEnrichmentService.normalize_linkedin_url(str(linkedin)))
+        return list(dict.fromkeys(url for url in urls if url))
+
+    @staticmethod
+    def normalize_linkedin_url(value: str) -> str:
+        profile = value.strip()
+        if not profile:
+            return ""
+        if profile.startswith("http://") or profile.startswith("https://"):
+            return profile
+        if "linkedin.com/" in profile:
+            return f"https://{profile.lstrip('/')}"
+        return f"https://linkedin.com/in/{profile.strip('/')}"
+
+    @staticmethod
+    def normalize_profile_url(value: str) -> str:
+        profile = value.strip()
+        if not profile:
+            return ""
+        if profile.startswith("http://") or profile.startswith("https://"):
+            return profile
+        return f"https://{profile.lstrip('/')}"
 
     @staticmethod
     def extract_company(data: dict) -> str:
@@ -271,17 +266,6 @@ class LeadEnrichmentService:
         if "Enrichment:" in base:
             base = base.split("Enrichment:", 1)[0].strip()
         return f"{base} {enrichment}".strip()[:1200]
-
-    @staticmethod
-    def merge_breakdown(existing: object, score_delta: int, status: object) -> str:
-        base = str(existing or "").strip()
-        label = "PDL Enrichment"
-        note = f"{label} (+{score_delta})" if status == "matched" else f"{label} (+0)"
-        if not base:
-            return note
-        if label in base:
-            base = ", ".join(part for part in base.split(", ") if label not in part)
-        return f"{base}, {note}".strip(", ")
 
     @staticmethod
     def skipped_result(summary: str) -> dict:

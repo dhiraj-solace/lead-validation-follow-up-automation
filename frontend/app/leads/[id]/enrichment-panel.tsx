@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiPost, Lead } from "@/lib/api";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
-import { Alert, Box, Button, Chip, LinearProgress, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Collapse, LinearProgress, Stack, Typography } from "@mui/material";
 import { PanelCard } from "../../ui";
 
 type EnrichResponse = {
@@ -17,10 +17,16 @@ type EnrichResponse = {
 export default function EnrichmentPanel({ lead }: { lead: Lead }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [moreInfoOpen, setMoreInfoOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const valid = lead.validation_status === "Valid";
   const profiles = parseProfiles(lead.enrichment_profiles);
+  const linkedinProfile = profiles.find(isLinkedInProfile);
+  const otherProfiles = profiles.filter((profile) => profile !== linkedinProfile);
+  const displayedProfiles = linkedinProfile ? otherProfiles : profiles;
+  const enrichmentInfo = parseEnrichmentData(lead.enrichment_data);
+  const hasMoreInfo = Boolean(enrichmentInfo);
 
   async function enrich() {
     setLoading(true);
@@ -39,7 +45,7 @@ export default function EnrichmentPanel({ lead }: { lead: Lead }) {
 
   return (
     <PanelCard
-      description="Fetch profile data from People Data Labs for valid leads and update the score."
+      description="Fetch profile data from People Data Labs for valid leads without changing the lead score."
       icon={<AutoFixHighOutlinedIcon color="primary" />}
       title="Lead Enrichment"
     >
@@ -51,7 +57,7 @@ export default function EnrichmentPanel({ lead }: { lead: Lead }) {
         <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
           <Chip label={`Status: ${label(lead.enrichment_status || "Not Run")}`} size="small" />
           <Chip label={`Confidence: ${lead.enrichment_confidence || 0}/10`} size="small" variant="outlined" />
-          <Chip label={`Score Impact: +${lead.enrichment_score_delta || 0}`} size="small" variant="outlined" />
+          <Chip label="Score unchanged" size="small" variant="outlined" />
         </Stack>
 
         {lead.enrichment_summary ? (
@@ -70,13 +76,24 @@ export default function EnrichmentPanel({ lead }: { lead: Lead }) {
           <Detail label="Location" value={lead.enrichment_location} />
         </Box>
 
-        {profiles.length ? (
+        {linkedinProfile ? (
+          <Box sx={{ bgcolor: "#eef8f7", border: "1px solid", borderColor: "#9bd7d2", borderRadius: 2, p: 1.2 }}>
+            <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
+              LinkedIn Profile
+            </Typography>
+            <Typography component="a" href={linkedinProfile} rel="noreferrer" target="_blank" variant="body2">
+              {linkedinProfile}
+            </Typography>
+          </Box>
+        ) : null}
+
+        {displayedProfiles.length ? (
           <Box sx={{ bgcolor: "#f8fafc", borderRadius: 2, p: 1.2 }}>
             <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
-              Social Profiles
+              {linkedinProfile ? "Other Profiles" : "Social Profiles"}
             </Typography>
             <Stack spacing={0.5} sx={{ mt: 0.6 }}>
-              {profiles.slice(0, 4).map((profile) => (
+              {displayedProfiles.map((profile) => (
                 <Typography component="a" href={profile} key={profile} rel="noreferrer" target="_blank" variant="body2">
                   {profile}
                 </Typography>
@@ -86,9 +103,22 @@ export default function EnrichmentPanel({ lead }: { lead: Lead }) {
         ) : null}
 
         {loading ? <LinearProgress /> : null}
-        <Button disabled={!valid || loading} onClick={enrich} startIcon={<AutoFixHighOutlinedIcon />} variant="contained">
-          {loading ? "Enriching..." : lead.enrichment_status ? "Re-Enrich Lead" : "Enrich Lead"}
-        </Button>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button disabled={!valid || loading} onClick={enrich} startIcon={<AutoFixHighOutlinedIcon />} variant="contained">
+            {loading ? "Enriching..." : lead.enrichment_status ? "Re-Enrich Lead" : "Enrich Lead"}
+          </Button>
+          <Button disabled={!hasMoreInfo} onClick={() => setMoreInfoOpen((open) => !open)} variant="outlined">
+            {moreInfoOpen ? "Hide More Info" : "More Info"}
+          </Button>
+        </Stack>
+
+        <Collapse in={moreInfoOpen && hasMoreInfo}>
+          <Box sx={{ bgcolor: "#0f172a", borderRadius: 2, maxHeight: 420, overflow: "auto", p: 1.4 }}>
+            <Typography component="pre" sx={{ color: "#e2e8f0", fontFamily: "monospace", fontSize: 12, m: 0, whiteSpace: "pre-wrap" }}>
+              {JSON.stringify(enrichmentInfo, null, 2)}
+            </Typography>
+          </Box>
+        </Collapse>
       </Stack>
     </PanelCard>
   );
@@ -118,5 +148,24 @@ function parseProfiles(value?: string | string[] | null) {
     return Array.isArray(parsed) ? parsed.map(String) : [];
   } catch {
     return [];
+  }
+}
+
+function isLinkedInProfile(profile: string) {
+  return profile.toLowerCase().includes("linkedin.com/");
+}
+
+function parseEnrichmentData(value?: string | Record<string, unknown> | null) {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === "object") {
+    return Object.keys(value).length ? value : null;
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && Object.keys(parsed).length ? parsed : null;
+  } catch {
+    return null;
   }
 }

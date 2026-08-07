@@ -629,17 +629,11 @@ def _update_leads(q: str, params: tuple[Any, ...]) -> int:
             "enrichment_location",
             "enrichment_profiles",
             "enriched_at",
-            "score",
-            "score_band",
-            "score_breakdown",
             "validation_remarks",
-            "status",
-            "automation_status",
         ]
         data = dict(zip(fields, params[:-1]))
         data["enrichment_confidence"] = int(data.get("enrichment_confidence") or 0)
         data["enrichment_score_delta"] = int(data.get("enrichment_score_delta") or 0)
-        data["score"] = int(data.get("score") or 0)
         data["updated_at"] = _now()
         db.leads.update_one({"id": int(params[-1])}, {"$set": data})
     elif "set score = ?" in q and "score_band = ?" in q and "validation_remarks = ?" in q:

@@ -46,6 +46,17 @@ def _lead_defaults(row: dict) -> dict:
     row.setdefault("score_breakdown", "")
     row.setdefault("validation_status", row.get("status") or "Pending")
     row.setdefault("validation_remarks", "")
+    row.setdefault("enrichment_status", "")
+    row.setdefault("enrichment_provider", "")
+    row.setdefault("enrichment_confidence", 0)
+    row.setdefault("enrichment_score_delta", 0)
+    row.setdefault("enrichment_summary", "")
+    row.setdefault("enrichment_data", "{}")
+    row.setdefault("enrichment_full_name", "")
+    row.setdefault("enrichment_company", "")
+    row.setdefault("enrichment_title", "")
+    row.setdefault("enrichment_location", "")
+    row.setdefault("enrichment_profiles", "[]")
     row.setdefault("status", row.get("validation_status") or "Pending")
     row.setdefault("automation_status", "not_started")
     return row
@@ -604,6 +615,33 @@ def _update_leads(q: str, params: tuple[Any, ...]) -> int:
     elif "set call_consent = ?" in q and "do_not_call = ?" in q and len(params) == 3:
         call_consent, do_not_call, lead_id = params
         db.leads.update_one({"id": int(lead_id)}, {"$set": {"call_consent": call_consent, "do_not_call": do_not_call, "updated_at": _now()}})
+    elif "set enrichment_status = ?" in q:
+        fields = [
+            "enrichment_status",
+            "enrichment_provider",
+            "enrichment_confidence",
+            "enrichment_score_delta",
+            "enrichment_summary",
+            "enrichment_data",
+            "enrichment_full_name",
+            "enrichment_company",
+            "enrichment_title",
+            "enrichment_location",
+            "enrichment_profiles",
+            "enriched_at",
+            "score",
+            "score_band",
+            "score_breakdown",
+            "validation_remarks",
+            "status",
+            "automation_status",
+        ]
+        data = dict(zip(fields, params[:-1]))
+        data["enrichment_confidence"] = int(data.get("enrichment_confidence") or 0)
+        data["enrichment_score_delta"] = int(data.get("enrichment_score_delta") or 0)
+        data["score"] = int(data.get("score") or 0)
+        data["updated_at"] = _now()
+        db.leads.update_one({"id": int(params[-1])}, {"$set": data})
     elif "set score = ?" in q and "score_band = ?" in q and "validation_remarks = ?" in q:
         if len(params) == 8:
             score, score_band, validation_remarks, status, automation_status, next_followup_at, do_not_call, lead_id = params

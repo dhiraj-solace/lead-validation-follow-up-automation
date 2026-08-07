@@ -29,6 +29,8 @@ class Settings:
     CALL_MIN_SCORE: int = int(env_value("CALL_MIN_SCORE", "50") or "50")
     CALL_COOLDOWN_HOURS: int = int(env_value("CALL_COOLDOWN_HOURS", "24") or "24")
     EMAIL_VALIDATOR_API_KEY: str = env_value("EMAIL_VALIDATOR_API_KEY") or env_value("email_validator_api_key")
+    PDL_API_KEY: str = env_value("PDL_API_KEY")
+    PDL_PERSON_ENRICH_URL: str = env_value("PDL_PERSON_ENRICH_URL", "https://api.peopledatalabs.com/v5/person/enrich")
     DEMO_MODE: bool = os.getenv("DEMO_MODE", "true").lower() == "true"
     MONGODB_URI: str = env_value("MONGODB_URI")
     MONGODB_DB_NAME: str = env_value("MONGODB_DB_NAME", "lead_validation_automation")

@@ -9,6 +9,7 @@ import CallHistory, { CallLog } from "./call-history";
 import CallLeadAction from "./call-lead-action";
 import ConversationHistory from "./conversation-history";
 import EmailDraftPanel from "./email-draft-panel";
+import EnrichmentPanel from "./enrichment-panel";
 import LeadActions from "./lead-actions";
 
 export const dynamic = "force-dynamic";
@@ -232,6 +233,10 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           </Box>
         </Stack>
       </PanelCard>
+
+      <Box sx={{ mb: 2 }}>
+        <EnrichmentPanel lead={lead} />
+      </Box>
 
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.3fr) 360px" }, mb: 2 }}>
         <EmailDraftPanel

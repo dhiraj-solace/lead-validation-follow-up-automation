@@ -53,6 +53,18 @@ export type Lead = {
   score_band?: string | null;
   validation_status?: string | null;
   validation_remarks?: string | null;
+  enrichment_status?: string | null;
+  enrichment_provider?: string | null;
+  enrichment_confidence?: number | null;
+  enrichment_score_delta?: number | null;
+  enrichment_summary?: string | null;
+  enrichment_data?: string | Record<string, unknown> | null;
+  enrichment_full_name?: string | null;
+  enrichment_company?: string | null;
+  enrichment_title?: string | null;
+  enrichment_location?: string | null;
+  enrichment_profiles?: string | string[] | null;
+  enriched_at?: string | null;
   duplicate_of?: number | null;
   assigned_agent_name?: string | null;
   assigned_agent_email?: string | null;

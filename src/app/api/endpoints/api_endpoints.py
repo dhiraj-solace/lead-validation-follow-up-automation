@@ -35,6 +35,7 @@ from src.app.services.email_learning_service import EmailLearningService
 from src.app.services.email_service import EmailService
 from src.app.services.file_parser_service import FileParserService
 from src.app.services.followup_service import FollowupService
+from src.app.services.lead_enrichment_service import LeadEnrichmentService
 from src.app.services.lead_service import LeadService
 from src.app.services.phone_service import TwilioLookupClient
 from src.app.services.scoring_service import LeadScoringService
@@ -207,6 +208,11 @@ async def delete_lead(lead_id: int):
     if not result["success"]:
         raise HTTPException(status_code=404, detail=result["message"])
     return result
+
+
+@router.post("/{lead_id:int}/enrich")
+async def enrich_lead(lead_id: int):
+    return LeadEnrichmentService.enrich_lead(lead_id)
 
 
 @router.post("/{lead_id:int}/generate-email", response_model=EmailDraftResponse)

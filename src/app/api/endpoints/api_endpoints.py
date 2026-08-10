@@ -8,6 +8,7 @@ from src.app.db.database import execute
 from src.app.models.schemas import (
     AgentCreateRequest,
     AppSettingsRequest,
+    AutomationRunResponse,
     BatchEmailValidationResponse,
     BatchPhoneValidationResponse,
     CallPreferencesRequest,
@@ -249,6 +250,101 @@ async def send_email_draft(lead_id: int, payload: EmailDraftRequest):
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
     return result
+
+
+@router.post("/{lead_id:int}/run-automation", response_model=AutomationRunResponse)
+async def run_lead_automation(lead_id: int):
+    lead = LeadService.get_lead(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found.")
+    if lead.get("validation_status") != "Valid":
+        raise HTTPException(status_code=400, detail="Only valid leads can run automation.")
+
+    steps: list[dict] = []
+    started_call_id: int | None = None
+
+    subject = str(lead.get("email_draft_subject") or "").strip()
+    body = str(lead.get("email_draft_body") or "").strip()
+    if lead.get("email_sent_status") == "sent":
+        steps.append({"action": "email", "status": "skipped", "message": "Initial email already sent."})
+    else:
+        if not subject or not body:
+            draft = AIEmailService.generate_draft(lead_id)
+            if draft.get("success"):
+                subject = str(draft.get("subject") or "")
+                body = str(draft.get("body") or "")
+                steps.append({"action": "email_draft", "status": "completed", "message": "Email draft generated."})
+            else:
+                steps.append({"action": "email_draft", "status": "failed", "message": draft.get("message", "Email draft generation failed.")})
+
+        if subject and body:
+            try:
+                sent = await AIEmailService.send_draft(lead_id, subject, body)
+                steps.append({
+                    "action": "email",
+                    "status": "completed" if sent.get("success") else "failed",
+                    "message": sent.get("message", "Email send completed."),
+                })
+            except Exception as exc:
+                steps.append({"action": "email", "status": "failed", "message": str(exc)})
+        else:
+            steps.append({"action": "email", "status": "skipped", "message": "No email draft available to send."})
+
+    lead = LeadService.get_lead(lead_id) or lead
+    eligibility = VoiceCallService.eligibility(lead)
+    if not eligibility["eligible"]:
+        steps.append({"action": "call", "status": "skipped", "message": " ".join(eligibility["reasons"])})
+    else:
+        try:
+            call_result = VoiceCallService.start_call(
+                lead_id,
+                VoiceCallService.questionnaire_intro(lead),
+                "questionnaire",
+            )
+            started_call_id = int(call_result.get("call_id") or 0) or None
+            steps.append({
+                "action": "call",
+                "status": "completed",
+                "message": call_result.get("message", "Call queued."),
+                "call_id": started_call_id,
+            })
+        except Exception as exc:
+            steps.append({"action": "call", "status": "failed", "message": str(exc)})
+
+    transcribe_target = _automation_transcribe_target(lead_id, started_call_id)
+    if not transcribe_target:
+        steps.append({
+            "action": "transcribe",
+            "status": "waiting",
+            "message": "Recording is not available yet. It will be available after the call ends and Twilio sends the recording callback.",
+            "call_id": started_call_id,
+        })
+    else:
+        try:
+            call = VoiceCallService.transcribe_recording(int(transcribe_target["id"]))
+            steps.append({
+                "action": "transcribe",
+                "status": "completed",
+                "message": "Recording transcribed and analyzed.",
+                "call_id": int(call.get("id") or transcribe_target["id"]),
+            })
+        except Exception as exc:
+            steps.append({
+                "action": "transcribe",
+                "status": "failed",
+                "message": str(exc),
+                "call_id": int(transcribe_target["id"]),
+            })
+
+    failed = [step for step in steps if step["status"] == "failed"]
+    waiting = [step for step in steps if step["status"] == "waiting"]
+    if failed:
+        message = "Automation finished with some failed steps."
+    elif waiting:
+        message = "Automation started. Transcription is waiting for the call recording."
+    else:
+        message = "Automation completed."
+    return {"success": not failed, "message": message, "lead_id": lead_id, "steps": steps}
 
 
 @router.post("/{lead_id:int}/send-whatsapp")
@@ -624,6 +720,23 @@ def _should_auto_send_email(lead: dict) -> bool:
         and lead.get("email_draft_subject")
         and lead.get("email_draft_body")
         and lead.get("email_sent_status") != "sent"
+    )
+
+
+def _automation_transcribe_target(lead_id: int, started_call_id: int | None = None) -> dict | None:
+    calls = VoiceCallService.history_for_lead(lead_id)
+    if started_call_id:
+        call = next((item for item in calls if int(item.get("id") or 0) == started_call_id), None)
+        if call and call.get("recording_url") and call.get("transcript_status") != "completed":
+            return call
+        return None
+    return next(
+        (
+            call
+            for call in calls
+            if call.get("recording_url") and call.get("transcript_status") != "completed"
+        ),
+        None,
     )
 
 

@@ -5,6 +5,7 @@ import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutli
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { EmailStatusChip, PanelCard, ScoreChip, ValidationChip } from "../../ui";
+import AutomationRunAction from "./automation-run-action";
 import CallHistory, { CallLog } from "./call-history";
 import CallLeadAction from "./call-lead-action";
 import ConversationHistory from "./conversation-history";
@@ -252,6 +253,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
           icon={<CheckCircleOutlineOutlinedIcon color="primary" />}
           title="Next Actions"
         >
+          <AutomationRunAction leadId={lead.id} validationStatus={lead.validation_status} />
           <CallLeadAction
             assignedAgent={toTitleCase(lead.assigned_agent_name || "Unassigned")}
             eligibility={lead.call_eligibility}

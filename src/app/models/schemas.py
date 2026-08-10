@@ -196,6 +196,20 @@ class CallScriptRequest(BaseModel):
     call_mode: str = "script"
 
 
+class AutomationRunStep(BaseModel):
+    action: str
+    status: str
+    message: str
+    call_id: Optional[int] = None
+
+
+class AutomationRunResponse(BaseModel):
+    success: bool
+    message: str
+    lead_id: int
+    steps: List[AutomationRunStep]
+
+
 class CallPreferencesRequest(BaseModel):
     call_consent: bool = True
     do_not_call: bool = False

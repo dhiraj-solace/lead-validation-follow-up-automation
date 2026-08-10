@@ -82,8 +82,8 @@ export default function CallHistory({ calls }: { calls: CallLog[] }) {
                     label={recordingLabel(call)}
                     size="small"
                     sx={{
-                      bgcolor: call.recording_url ? "#dcfce7" : call.recording_status === "failed" ? "#fdecea" : "#eef2f7",
-                      color: call.recording_url ? "#087443" : call.recording_status === "failed" ? "#b42318" : "#42526a",
+                      bgcolor: call.recording_url ? "#dbeafe" : call.recording_status === "failed" ? "#fdecea" : "#eef2f7",
+                      color: call.recording_url ? "#1d4ed8" : call.recording_status === "failed" ? "#b42318" : "#42526a",
                       fontWeight: 850
                     }}
                   />

@@ -77,7 +77,7 @@ export default function EnrichmentPanel({ lead }: { lead: Lead }) {
         </Box>
 
         {linkedinProfile ? (
-          <Box sx={{ bgcolor: "#eef8f7", border: "1px solid", borderColor: "#9bd7d2", borderRadius: 2, p: 1.2 }}>
+          <Box sx={{ bgcolor: "#eff6ff", border: "1px solid", borderColor: "#bfdbfe", borderRadius: 2, p: 1.2 }}>
             <Typography color="text.secondary" sx={{ fontSize: 11, fontWeight: 850, textTransform: "uppercase" }}>
               LinkedIn Profile
             </Typography>

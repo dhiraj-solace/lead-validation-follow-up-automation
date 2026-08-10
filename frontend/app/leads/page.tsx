@@ -319,7 +319,7 @@ function LeadStatCard({
 }) {
   const colors = {
     primary: { bg: "#e9f2ff", color: "#155ca8" },
-    success: { bg: "#e5f7ef", color: "#0f7a55" },
+    success: { bg: "#dbeafe", color: "#1d4ed8" },
     warning: { bg: "#fff3d7", color: "#946200" },
     error: { bg: "#fdecea", color: "#bf3b32" }
   };

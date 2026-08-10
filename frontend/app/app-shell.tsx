@@ -49,7 +49,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <Box
         component="aside"
         sx={{
-          bgcolor: "#10231f",
+          bgcolor: "#0f2f6b",
           color: "common.white",
           display: "flex",
           flexDirection: "column",
@@ -83,7 +83,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <Typography sx={{ fontWeight: 900, lineHeight: 1.2 }}>
               Lead Automation
             </Typography>
-            <Typography color="#a9bbb5" sx={{ fontSize: 12 }}>
+            <Typography color="#bfdbfe" sx={{ fontSize: 12 }}>
               Validation & follow-up
             </Typography>
           </Box>
@@ -109,14 +109,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 selected={active}
                 sx={{
                   borderRadius: 2,
-                  color: active ? "#10231f" : "#cad7d3",
+                  color: active ? "#0f2f6b" : "#dbeafe",
                   flex: { xs: "0 0 auto", md: "1 1 auto" },
                   minHeight: 42,
                   px: 1.5,
                   py: 1,
                   "&.Mui-selected": {
                     bgcolor: "common.white",
-                    color: "#10231f",
+                    color: "#0f2f6b",
                     fontWeight: 800
                   },
                   "&.Mui-selected:hover": {
@@ -151,7 +151,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           sx={{
             alignSelf: "flex-start",
             borderColor: "rgba(255,255,255,0.18)",
-            color: "#a9bbb5",
+            color: "#bfdbfe",
             display: { xs: "none", md: "inline-flex" },
             mt: "auto"
           }}

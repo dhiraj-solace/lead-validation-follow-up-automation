@@ -9,7 +9,7 @@ const scoreStyles = {
 };
 
 const validationStyles = {
-  Valid: { bgcolor: "#dff5ea", color: "#0f7a55" },
+  Valid: { bgcolor: "#dbeafe", color: "#1d4ed8" },
   Invalid: { bgcolor: "#fde8e5", color: "#bf3b32" },
   Duplicate: { bgcolor: "#eef2f7", color: "#42526a" },
   Pending: { bgcolor: "#eef2f7", color: "#42526a" }
@@ -158,8 +158,8 @@ export function EmailStatusChip({ status }: { status?: string | null }) {
       label={sent ? "Sent" : "Not Sent"}
       size="small"
       sx={{
-        bgcolor: sent ? "#dff5ea" : "#eef2f7",
-        color: sent ? "#0f7a55" : "#42526a",
+        bgcolor: sent ? "#dbeafe" : "#eef2f7",
+        color: sent ? "#1d4ed8" : "#42526a",
         fontWeight: 850
       }}
     />
@@ -172,8 +172,8 @@ export function DraftStatusChip({ ready }: { ready?: boolean }) {
       label={ready ? "Draft Ready" : "No Draft"}
       size="small"
       sx={{
-        bgcolor: ready ? "#e5f7ef" : "#eef2f7",
-        color: ready ? "#0f7a55" : "#42526a",
+        bgcolor: ready ? "#dbeafe" : "#eef2f7",
+        color: ready ? "#1d4ed8" : "#42526a",
         fontWeight: 850
       }}
     />

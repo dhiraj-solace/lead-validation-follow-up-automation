@@ -95,7 +95,7 @@ function StatusChip({ label, tone = "neutral" }: { label: string; tone?: "succes
   const palette = {
     danger: { bgcolor: "#fdecea", color: "#b42318" },
     neutral: { bgcolor: "#eef2f7", color: "#42526a" },
-    success: { bgcolor: "#dcfce7", color: "#087443" },
+    success: { bgcolor: "#dbeafe", color: "#1d4ed8" },
     warning: { bgcolor: "#ffedd5", color: "#9a3412" }
   }[tone];
   return (
@@ -112,7 +112,7 @@ function ScoreLabel({ score }: { score: number }) {
     <Chip
       label={`Score: ${score}`}
       size="small"
-      sx={{ bgcolor: "#e6f4f1", color: "#006b5c", fontSize: 12, fontWeight: 900, height: 24 }}
+      sx={{ bgcolor: "#dbeafe", color: "#1d4ed8", fontSize: 12, fontWeight: 900, height: 24 }}
     />
   );
 }

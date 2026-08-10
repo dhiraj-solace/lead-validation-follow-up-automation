@@ -249,7 +249,7 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
         />
 
         <PanelCard
-          description={emailAlreadySent ? "Follow-up, WhatsApp, and reply controls." : "Available after the initial email is sent."}
+          description={emailAlreadySent ? "Follow-up and reply controls." : "Available after the initial email is sent."}
           icon={<CheckCircleOutlineOutlinedIcon color="primary" />}
           title="Next Actions"
         >

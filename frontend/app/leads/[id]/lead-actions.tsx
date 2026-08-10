@@ -5,7 +5,6 @@ import { useState } from "react";
 import { apiPost } from "@/lib/api";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import { Alert, Button, Stack, Typography } from "@mui/material";
 
 export default function LeadActions({
@@ -48,25 +47,12 @@ export default function LeadActions({
     }
   }
 
-  async function sendWhatsApp() {
-    setLoading("whatsapp");
-    setError("");
-    try {
-      await apiPost(`/${leadId}/send-whatsapp`);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "WhatsApp send failed");
-    } finally {
-      setLoading("");
-    }
-  }
-
   return (
     <Stack spacing={1.25} sx={{ alignItems: "stretch" }}>
       {compact ? (
         <Stack spacing={0.4} sx={{ alignItems: "stretch" }}>
           <Typography color="text.secondary" variant="body2">
-            Send a follow-up after the initial email, contact on WhatsApp, or stop automation when the lead replies.
+            Send a follow-up after the initial email or stop automation when the lead replies.
           </Typography>
         </Stack>
       ) : null}
@@ -89,17 +75,6 @@ export default function LeadActions({
             variant="contained"
           >
             {loading === "send" ? "Sending..." : "Send Follow-Up"}
-          </Button>
-        ) : null}
-        {compact ? (
-          <Button
-            disabled={Boolean(loading)}
-            onClick={sendWhatsApp}
-            startIcon={<WhatsAppIcon />}
-            sx={{ flex: compact ? "1 1 160px" : undefined, minWidth: { sm: 160 } }}
-            variant="outlined"
-          >
-            {loading === "whatsapp" ? "Sending..." : "Send WhatsApp"}
           </Button>
         ) : null}
         <Button

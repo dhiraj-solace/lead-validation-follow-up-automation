@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import re
 
+from src.app.core.config import settings
 from src.app.db.database import execute, fetch_all, fetch_one
 from src.app.services.agent_service import AgentService
 from src.app.services.email_service import EmailService
@@ -518,11 +519,12 @@ class LeadService:
     @staticmethod
     def _normalize_phone(phone: str) -> str:
         digits = "".join(filter(str.isdigit, phone))
+        default_country_code = "".join(filter(str.isdigit, settings.PHONE_DEFAULT_COUNTRY_CODE or "91")) or "91"
         if len(digits) == 10:
-            return f"+1{digits}"
-        if len(digits) == 11 and digits.startswith("1"):
-            return f"+{digits}"
-        if len(digits) == 12 and digits.startswith("91"):
+            return f"+{default_country_code}{digits}"
+        if len(digits) == 11 and digits.startswith("0"):
+            return f"+{default_country_code}{digits[1:]}"
+        if len(digits) == 10 + len(default_country_code) and digits.startswith(default_country_code):
             return f"+{digits}"
         return phone
 

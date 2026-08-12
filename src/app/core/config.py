@@ -26,6 +26,7 @@ class Settings:
     TWILIO_AUTH_TOKEN: str = env_value("TWILIO_AUTH_TOKEN")
     TWILIO_PHONE_NUMBER: str = env_value("TWILIO_PHONE_NUMBER")
     PUBLIC_BASE_URL: str = env_value("PUBLIC_BASE_URL", "http://127.0.0.1:8000")
+    PHONE_DEFAULT_COUNTRY_CODE: str = env_value("PHONE_DEFAULT_COUNTRY_CODE", "91")
     CALL_MIN_SCORE: int = int(env_value("CALL_MIN_SCORE", "50") or "50")
     CALL_COOLDOWN_HOURS: int = int(env_value("CALL_COOLDOWN_HOURS", "24") or "24")
     EMAIL_VALIDATOR_API_KEY: str = env_value("EMAIL_VALIDATOR_API_KEY") or env_value("email_validator_api_key")

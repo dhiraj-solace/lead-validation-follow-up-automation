@@ -410,6 +410,7 @@ async def lead_call_history(lead_id: int):
 
 
 @router.get("/calls/{call_id:int}/twiml")
+@router.post("/calls/{call_id:int}/twiml")
 async def call_twiml(call_id: int):
     return VoiceCallService.twiml_response(call_id)
 
